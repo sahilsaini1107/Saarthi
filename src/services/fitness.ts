@@ -65,7 +65,9 @@ function checkEnum(value: string, allowed: readonly string[], label: string): st
 
 export async function listExercises(userId: string, q?: string): Promise<{ exercises: { id: string; name: string; muscleGroup: MuscleGroup; equipment: Equipment; usageCount: number }[] }> {
   const rows = await db.exercise.findMany({
-    where: { userId, ...(q ? { name: { contains: q } } : {}) },
+    // mode: 'insensitive' — Postgres `contains` is case-sensitive by default
+    // (SQLite's was not; this keeps search behaviour unchanged post-migration)
+    where: { userId, ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}) },
     orderBy: { name: 'asc' },
     include: { _count: { select: { setLogs: true } } },
   })

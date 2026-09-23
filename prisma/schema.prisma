@@ -4,14 +4,23 @@
 //  - money: integer paise (2-decimal safe); aggregates computed in JS
 //  - calendar dates: DateTime at UTC midnight = user's calendar date
 //  - user-scoping enforced in services on EVERY query (RLS-equivalent);
-//    when migrating to Supabase Postgres, add RLS policies on these tables.
+//    true Postgres RLS policies are an optional hardening step on top of
+//    this, not required for correctness — every query is already scoped.
+//
+// Provider: Postgres (moved off SQLite so the app runs on serverless hosts
+// like Vercel, whose filesystem is ephemeral/read-only and cannot hold a
+// writable SQLite file). BigInt and Bytes columns behave the same on both
+// providers; the only behavioural difference this schema hit was `contains`
+// filters, which are case-INsensitive by default on SQLite and
+// case-sensitive on Postgres — those call sites now pass
+// `mode: 'insensitive'` explicitly (services/fitness.ts, services/food.ts).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
