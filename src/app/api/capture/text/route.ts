@@ -1,0 +1,32 @@
+import { z } from 'zod'
+import { fail, parseBody, withUser } from '@/lib/api-helpers'
+import { parseTextCapture, suggestCategoryId } from '@/services/capture'
+import { db } from '@/lib/db'
+import { checkCaptureRateLimit, pruneRateLimitStores } from '@/lib/rate-limit'
+
+const schema = z.object({
+  text: z.string().min(1).max(4_000),
+  /** when true the response also suggests a category id for the draft */
+  suggestCategory: z.boolean().optional(),
+})
+
+export async function POST(req: Request) {
+  return withUser(async (user) => {
+    pruneRateLimitStores()
+    const limit = checkCaptureRateLimit(`capture:${user.id}`)
+    if (!limit.allowed) {
+      const sec = Math.max(1, Math.ceil(limit.retryAfterMs / 1000))
+      return fail(`Too many captures — try again in ${sec} seconds.`, 429)
+    }
+    const body = await parseBody(req, schema)
+    const result = await parseTextCapture(user.timezone, { text: body.text })
+    if (body.suggestCategory) {
+      const categories = await db.category.findMany({
+        where: { userId: user.id },
+        select: { id: true, name: true, kind: true },
+      })
+      return { ...result, categoryId: suggestCategoryId(result.note, result.direction, categories) }
+    }
+    return result
+  })
+}

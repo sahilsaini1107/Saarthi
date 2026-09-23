@@ -1,0 +1,1599 @@
+// Saarthi — money-core schema (Phase 0 + 1).
+// Conventions:
+//  - every table: id (cuid), userId, createdAt, updatedAt
+//  - money: integer paise (2-decimal safe); aggregates computed in JS
+//  - calendar dates: DateTime at UTC midnight = user's calendar date
+//  - user-scoping enforced in services on EVERY query (RLS-equivalent);
+//    when migrating to Supabase Postgres, add RLS policies on these tables.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  currency     String   @default("INR")
+  timezone     String   @default("Asia/Kolkata")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions     Session[]
+  accounts     Account[]
+  categories   Category[]
+  transactions Transaction[]
+  fixedDeposits FixedDeposit[]
+  recurringDeposits RecurringDeposit[]
+  investments  Investment[]
+  investmentTxns InvestmentTxn[]
+  assets       Asset[]
+  bills        Bill[]
+  billPayments BillPayment[]
+  netWorthSnapshots NetWorthSnapshot[]
+  investmentPricePoints InvestmentPricePoint[]
+  budgets       Budget[]
+  trips         Trip[]
+  habits       Habit[]
+  habitEntries HabitEntry[]
+  routines     Routine[]
+  routineRuns  RoutineRun[]
+  journalEntries JournalEntry[]
+  goals          Goal[]
+  goalTasks      GoalTask[]
+  courses        Course[]
+  studySessions  StudySession[]
+  workouts       Workout[]
+  bodyMetrics    BodyMetric[]
+  skinProducts   SkinProduct[]
+  skinCheckIns   SkinCheckIn[]
+  insurancePolicies InsurancePolicy[]
+  principles        Principle[]
+  principleChecks   PrincipleCheck[]
+  portfolioTargets PortfolioTarget[]
+  goalContributions GoalContribution[]
+  milestoneLogs MilestoneLog[]
+  exercises      Exercise[]
+  workoutPlans   WorkoutPlan[]
+  workoutSessions WorkoutSession[]
+  setLogs        SetLog[]
+  nutritionProfile NutritionProfile?
+  nutritionDays  NutritionDay[]
+  vaultConfig    VaultConfig?
+  vaultEntries   VaultEntry[]
+  books          Book[]
+  readingSessions ReadingSession[]
+  highlights     Highlight[]
+  bookBookmarks  BookBookmark[]
+  bookNotes      BookNote[]
+  quotes         Quote[]
+  skills         Skill[]
+  skillPractices SkillPractice[]
+  people         Person[]
+  touchpoints    Touchpoint[]
+  contentItems   ContentItem[]
+  ideas          Idea[]
+  mealEntries    MealEntry[]
+  foodItems      FoodItem[]
+  recipes        Recipe[]
+  bodyProfile    BodyProfile?
+  dailyCheckIns  DailyCheckIn[]
+  progressPhotos ProgressPhoto[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Account {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  // savings | cash | credit_card
+  type             String
+  // For savings/cash: money owned. For credit_card: outstanding amount owed.
+  balancePaise     Int      @default(0)
+  creditLimitPaise Int?
+  statementDay     Int?
+  dueDay           Int?
+  // portfolio job (Phase 8): liquidity | safety | income | growth | protection | speculation
+  job              String?
+  color            String   @default("#0D9488")
+  archived         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  emoji     String   @default("🏷️")
+  color     String   @default("#64748B")
+  // expense | income
+  kind      String   @default("expense")
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+  bills        Bill[]
+  budgets      Budget[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  amountPaise  Int
+  // in | out
+  direction    String
+  date         DateTime
+  note         String?
+  // manual | voice | ocr | csv | whatsapp
+  source       String   @default("manual")
+  attachmentUrl String?
+  tripId       String?
+  trip         Trip?    @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  // client-generated idempotency key (Phase 7 offline write-queue): retries
+  // of a queued Quick-Add resolve to the original row instead of duplicating
+  clientKey    String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  billPayment BillPayment?
+
+  @@index([userId, date])
+  @@index([accountId, date])
+  @@index([categoryId])
+  @@index([tripId])
+}
+
+model FixedDeposit {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bank                String
+  principalPaise      Int
+  ratePct             Float
+  tenureMonths        Int
+  startDate           DateTime
+  // simple | annual | half_yearly | quarterly | monthly
+  compounding         String   @default("quarterly")
+  autoRenew           Boolean  @default(false)
+  // active | matured | closed
+  status              String   @default("active")
+  // portfolio job (Phase 8) — same vocabulary as Account.job
+  job                 String?
+  maturityDate        DateTime
+  maturityAmountPaise Int
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId, maturityDate])
+}
+
+model RecurringDeposit {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bank                String
+  // monthly installment — BigInt: asset-scale money can exceed Int32 (Decision #10)
+  installmentPaise    BigInt
+  ratePct             Float
+  tenureMonths        Int
+  startDate           DateTime
+  // simple | annual | quarterly | monthly (Indian RDs are almost always quarterly)
+  compounding         String   @default("quarterly")
+  autoRenew           Boolean  @default(false)
+  // active | matured | closed
+  status              String   @default("active")
+  // portfolio job (Phase 8) — same vocabulary as Account.job
+  job                 String?
+  maturityDate        DateTime
+  maturityAmountPaise BigInt
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  bill Bill?
+
+  @@index([userId, maturityDate])
+}
+
+model Investment {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  // stock | bond | crypto | mutual_fund | etf | gold | reit | ppf | nps | other
+  type              String
+  symbol            String?
+  // broker / exchange / app where it is held
+  platform          String?
+  // portfolio job (Phase 8) — same vocabulary as Account.job
+  job               String?
+  // Bond/income instrument fields (Phase 8, all optional):
+  // annual coupon or interest rate, e.g. 7.25 = 7.25% p.a.
+  ratePct           Float?
+  // govt | AAA | AA | A | BBB | BB | B | below_B | unrated
+  creditRating      String?
+  // bond maturity (null = perpetual / not applicable)
+  maturityDate      DateTime?
+  // monthly | quarterly | half_yearly | annual coupon payment cadence
+  couponFrequency   String?
+  // latest known unit price in paise (user-updated; no market API)
+  currentPricePaise BigInt
+  priceUpdatedAt    DateTime  @default(now())
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  txns InvestmentTxn[]
+  pricePoints InvestmentPricePoint[]
+
+  @@index([userId, type])
+}
+
+model InvestmentTxn {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  investmentId String
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  // buy | sell | dividend | interest
+  kind         String
+  quantity     Float
+  // total cash value in paise (always positive; kind gives direction)
+  amountPaise  BigInt
+  date         DateTime
+  note         String?
+  createdAt    DateTime @default(now())
+
+  @@index([investmentId, date])
+  @@index([userId])
+}
+
+model Asset {
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  // real_estate | vehicle | machinery | gold_jewellery | electronics | furniture | art | other
+  category           String
+  currentValuePaise  BigInt
+  purchaseValuePaise BigInt?
+  purchaseDate       DateTime?
+  // portfolio job (Phase 8) — same vocabulary as Account.job
+  job                String?
+  location           String?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId, category])
+}
+
+model Bill {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  amountPaise      Int
+  // monthly | quarterly | annual | custom_days
+  frequency        String   @default("monthly")
+  customDays       Int?
+  nextDue          DateTime
+  // preserved day-of-month so short months never drift the schedule
+  anchorDay        Int
+  remindDaysBefore Int      @default(1)
+  categoryId       String?
+  category         Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  accountId        String?
+  // when this bill pays an RD installment (one bill per RD, auto-created)
+  rdId             String?  @unique
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  payments BillPayment[]
+  recurringDeposit RecurringDeposit? @relation(fields: [rdId], references: [id], onDelete: Cascade)
+
+  @@index([userId, nextDue])
+}
+
+model BillPayment {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  billId        String
+  bill          Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  // the period this payment settles — guarantees pay-once per period
+  dueDate       DateTime
+  paidDate      DateTime @default(now())
+  transactionId String?  @unique
+
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([billId, dueDate])
+  @@index([userId])
+}
+
+// ---------- Phase 4 — Investment price history & net worth trend ----------
+
+// Every price the user records becomes a dated point (auto-captured on create
+// and on every price change — zero extra work). One point per day: re-entering
+// today's price upserts, matching the BodyMetric convention (Decision #21).
+model InvestmentPricePoint {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  investmentId String
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  date         DateTime
+  pricePaise   BigInt
+  createdAt    DateTime   @default(now())
+
+  @@unique([investmentId, date])
+  @@index([investmentId, date])
+  @@index([userId])
+}
+
+// Lazy daily net-worth snapshots: upserted whenever the Today snapshot is
+// computed (i.e. every app open), so history accumulates with zero effort.
+// BigInt per Decision #10 (real-asset scale). Parts sum to total.
+model NetWorthSnapshot {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime
+  liquidPaise      BigInt
+  depositsPaise    BigInt
+  investmentsPaise BigInt
+  assetsPaise      BigInt
+  liabilitiesPaise BigInt
+  totalPaise       BigInt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// ---------- Phase 8 — Portfolio planner ("every rupee has a job") ----------
+
+// Target allocation per job, as a percent of invested wealth (0–100).
+// One row per (user, job); the six rows together form the user's plan.
+// Presets in lib/planner.ts fill sensible starting plans.
+model PortfolioTarget {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // liquidity | safety | income | growth | protection | speculation
+  job       String
+  targetPct Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, job])
+  @@index([userId])
+}
+
+// ---------- Phase 2 — Growth & Reflection ----------
+
+model Habit {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  emoji     String   @default("✅")
+  color     String   @default("#0D9488")
+  // Mon..Sun schedule as a 7-char bitstring, e.g. "1111100" = weekdays only
+  weekdays  String   @default("1111111")
+  // 66-day building mode window (brief's habit-building convention)
+  buildingDays Int   @default(66)
+  startDate DateTime
+  // "HH:MM" local reminder time in the user's timezone (null = no reminder)
+  reminderTime String?
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries HabitEntry[]
+
+  @@index([userId])
+}
+
+model HabitEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habitId   String
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  // UTC midnight = the user's calendar day; unique per (habit, day) so a
+  // check-in is exactly-once, same guarantee as bill payments
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+}
+
+model Routine {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  emoji     String   @default("🌅")
+  weekdays  String   @default("1111111")
+  reminderTime String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  steps RoutineStep[]
+  runs  RoutineRun[]
+
+  @@index([userId])
+}
+
+model RoutineStep {
+  id        String   @id @default(cuid())
+  routineId String
+  routine   Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  order     Int
+  title     String
+  // planned minutes (null = untimed step, play mode just counts up)
+  minutes   Int?
+  createdAt DateTime @default(now())
+
+  @@index([routineId, order])
+}
+
+model RoutineRun {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routineId      String
+  routine        Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  date           DateTime
+  completedSteps Int
+  totalSteps     Int
+  secondsSpent   Int
+  completedAt    DateTime @default(now())
+
+  // one run per routine per day; replaying replaces the run (upsert)
+  @@unique([routineId, date])
+  @@index([userId, date])
+}
+
+model JournalEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  content   String
+  // great | good | okay | low | bad
+  mood      String?
+  // comma-separated tags; commas are stripped from user input (Decision #15)
+  tags      String   @default("")
+  date      DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+}
+
+// ---------- Phase 3 — Goals, Study, Body, Skin ----------
+
+model Goal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  emoji       String    @default("🎯")
+  color       String    @default("#0D9488")
+  targetDate  DateTime?
+  // active | achieved | archived — status is manual; progress is computed
+  status      String    @default("active")
+  // Phase 9 — daily contribution tracking:
+  // null = plain milestone/task goal; 'money' = ₹ contributions;
+  // 'count' = unit-based contributions (unitLabel, e.g. "km", "pages")
+  metric      String?
+  // count unit label (money always shows ₹); null for metric-less goals
+  unitLabel   String?
+  // optional total target in milli-units (₹1 = 1000 milli, 1 session = 1000
+  // milli — Decision #21 convention); daily benchmark derives from it
+  targetValueMilli BigInt?
+  // Phase 10 — planner ↔ goals link: which portfolio job's sleeve funds this
+  // goal (liquidity | safety | income | growth | protection | speculation).
+  // Money goals only; null = not linked to the plan.
+  job          String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  milestones    Milestone[]
+  tasks         GoalTask[]
+  contributions GoalContribution[]
+
+  @@index([userId, status])
+}
+
+// One contribution per goal per day (unique goalId+date — exactly-once, same
+// guarantee as habit check-ins and bill payments). Re-entering a day's value
+// upserts (replaces), matching the BodyMetric convention (Decision #21).
+// amountMilli is milli-units of the goal metric: money goals store ₹×1000
+// (2-decimal exact), count goals store value×1000.
+model GoalContribution {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId      String
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  date        DateTime
+  amountMilli BigInt
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([goalId, date])
+  @@index([userId, date])
+}
+
+model Milestone {
+  id         String    @id @default(cuid())
+  goalId     String
+  goal       Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  title      String
+  order      Int
+  // manual completion for milestones that have no task breakdown;
+  // milestones WITH tasks are done exactly when all their tasks are
+  doneAt     DateTime?
+  targetDate DateTime?
+  // Phase 11 — optional planned effort in minutes (e.g. 40h = 2400);
+  // informational time-progress only, completion stays checklist-driven
+  targetMinutes Int?
+  createdAt  DateTime  @default(now())
+
+  tasks GoalTask[]
+  logs  MilestoneLog[]
+
+  @@index([goalId, order])
+}
+
+// Phase 11 — milestone daily journal. One log per milestone per day
+// (unique milestoneId+date — exactly-once, upsert-replace like
+// GoalContribution / habit check-ins). Captures the learning-goal loop:
+// minutes worked, what was done, what is being learned, key takeaway.
+model MilestoneLog {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestoneId String
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  // UTC midnight = the user's calendar day
+  date        DateTime
+  // minutes worked that day (1..1440)
+  minutes     Int
+  // "What did you work on today?"
+  did         String?
+  // "What are you learning?"
+  learned     String?
+  // "Key takeaway 💡"
+  keyLearning String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([milestoneId, date])
+  @@index([userId, date])
+}
+
+model GoalTask {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId      String
+  goal        Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  // optional parent milestone; deleting a milestone deletes its tasks
+  milestoneId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  title       String
+  doneAt      DateTime?
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([goalId])
+  @@index([userId, dueDate])
+}
+
+model Course {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  provider      String?
+  emoji         String    @default("📚")
+  color         String    @default("#8B5CF6")
+  startDate     DateTime
+  targetEndDate DateTime?
+  // active | completed | paused | dropped
+  status        String    @default("active")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  topics   CourseTopic[]
+  sessions StudySession[]
+
+  @@index([userId, status])
+}
+
+model CourseTopic {
+  id             String    @id @default(cuid())
+  courseId       String
+  course         Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order          Int
+  title          String
+  estMinutes     Int?
+  // todo | learning | done
+  status         String    @default("todo")
+  firstStudiedAt DateTime?
+  // revision ladder state (lib/study.ts): count of successful revisions;
+  // nextRevisionAt null = not scheduled / graduated
+  revisionStage  Int       @default(0)
+  nextRevisionAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  sessions StudySession[]
+
+  @@index([courseId, order])
+  @@index([status, nextRevisionAt])
+}
+
+model StudySession {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  topicId   String?
+  topic     CourseTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  date      DateTime
+  minutes   Int
+  note      String?
+  createdAt DateTime     @default(now())
+
+  @@index([courseId, date])
+  @@index([userId, date])
+}
+
+model Workout {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  // strength | cardio | yoga | sports | walk | hiit | other
+  type      String
+  minutes   Int
+  // light | moderate | hard
+  intensity String   @default("moderate")
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model BodyMetric {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       DateTime
+  // weight | chest | waist | hips | arm | thigh | body_fat | other
+  kind       String
+  // milli-units (kg / cm / %): 72.5 kg = 72500 — integer-safe at 3 decimals
+  valueMilli Int
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // one measurement per kind per day; re-entering today's value upserts
+  @@unique([userId, kind, date])
+  @@index([userId, kind, date])
+}
+
+model SkinProduct {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  brand      String?
+  // cleanser | toner | serum | moisturizer | sunscreen | eye_cream | exfoliant | mask | other
+  kind       String
+  openedDate DateTime?
+  // period-after-opening in months → PAO expiry warnings (lib/skin.ts)
+  paoMonths  Int?
+  // active | finished | discarded
+  status     String    @default("active")
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId, status])
+}
+
+model SkinCheckIn {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  amDone    Boolean  @default(false)
+  pmDone    Boolean  @default(false)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // one row per day; AM/PM toggles upsert into it
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// ---------- Phase 5 — Intelligence layer (budgets, travel) ----------
+
+// A monthly spending cap per expense category. Budgets RECUR every month
+// (no per-month overrides — Decision #25): set once, tracked against each
+// month's category spend. Pace bands are computed in lib/budgets.ts.
+model Budget {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  amountPaise Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // one budget per category per user
+  @@unique([userId, categoryId])
+  @@index([userId])
+}
+
+// ---------- Phase 7 — Insurance & gamification ----------
+
+// An insurance policy (term/health/life/vehicle/asset/other). Premiums
+// recur on a drift-free anchored schedule (nextPremiumDue advances by the
+// frequency with the anchor day preserved — same convention as bills).
+// Policies are NOT part of net worth: sum assured is protection, not an
+// asset you own (Decision #34).
+model InsurancePolicy {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  // term | health | life | vehicle | asset | other
+  type              String
+  insurer           String
+  policyNumber      String?
+  // total protection coverage (BigInt — asset scale, Decision #10)
+  sumAssuredPaise   BigInt
+  premiumPaise      Int
+  // monthly | quarterly | half_yearly | annual
+  premiumFrequency  String    @default("annual")
+  nextPremiumDue    DateTime
+  startDate         DateTime
+  // null = pure protection with no maturity (term plans)
+  maturityDate      DateTime?
+  nominee           String?
+  // active | lapsed | closed
+  status            String    @default("active")
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId, nextPremiumDue])
+}
+
+// A trip buckets expenses (Transaction.tripId, SetNull on delete — deleting
+// a trip never touches the ledger). Phase is DERIVED from dates
+// (lib/trips.ts tripPhase): planned → ongoing → past, so it can never go
+// stale like a stored status flag would.
+model Trip {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  emoji       String    @default("✈️")
+  destination String?
+  startDate   DateTime
+  // null = open-ended / not yet decided
+  endDate     DateTime?
+  // optional spending cap for the trip (Int paise — trip scale, Decision #3)
+  budgetPaise Int?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  transactions Transaction[]
+
+  @@index([userId, startDate])
+}
+
+// ---------- Phase 13 — Strength Coach ----------
+
+// User-scoped exercise library. SetLogs and PlanExercises reference it by id
+// so progression history survives renames. Auto-created on first use in the
+// session logger or plan editor (unique per user by lowercase name).
+model Exercise {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  // chest | back | shoulders | arms | legs | core | full_body | cardio | other
+  muscleGroup String   @default("other")
+  // barbell | dumbbell | machine | cable | bodyweight | other
+  equipment   String   @default("other")
+  // Phase 19 — media: YouTube form video (ID derived at read time, never
+  // stored) + a photo kept in SQLite (5 MB cap, mime image/*)
+  mediaUrl    String?
+  photoData   Bytes?
+  photoMime   String?
+  photoName   String?
+  createdAt   DateTime @default(now())
+
+  planExercises PlanExercise[]
+  setLogs       SetLog[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+// A training program (e.g. "Foundation A/B"). Exactly one plan is active at a
+// time per user — it powers the Today card's "next workout" (rotation rule,
+// lib/fitness.ts nextPlanDay).
+model WorkoutPlan {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  emoji     String   @default("🏋️")
+  note      String?
+  active    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  days     PlanDay[]
+  sessions WorkoutSession[]
+
+  @@index([userId])
+}
+
+// One training day inside a plan ("Workout A — full body"). Order defines the
+// rotation cycle; sessions snapshot the day's label at log time.
+model PlanDay {
+  id        String   @id @default(cuid())
+  planId    String
+  plan      WorkoutPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  order     Int
+  label     String
+  focus     String?
+  createdAt DateTime @default(now())
+
+  exercises PlanExercise[]
+  sessions  WorkoutSession[]
+
+  @@index([planId, order])
+}
+
+// Prescription: which exercise, how many sets × what rep/second range, rest.
+// Rep-targeted moves set repMin/repMax; timed moves (plank) set
+// secondsMin/secondsMax and leave reps null.
+model PlanExercise {
+  id          String   @id @default(cuid())
+  dayId       String
+  day         PlanDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  exerciseId  String
+  exercise    Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  order       Int
+  sets        Int      @default(3)
+  repMin      Int?
+  repMax      Int?
+  secondsMin  Int?
+  secondsMax  Int?
+  restSeconds Int?
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([dayId, order])
+}
+
+// One logged training session (a real visit to the gym / park). Distinct from
+// the quick `Workout` log (cardio minutes) — both count toward the Life Score
+// movement component and XP stats (Decision #50).
+model WorkoutSession {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId      String?
+  plan        WorkoutPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  planDayId   String?
+  planDay     PlanDay?    @relation(fields: [planDayId], references: [id], onDelete: SetNull)
+  date        DateTime
+  label       String
+  // filled on finish (or edited later); minutes feed Life Score + XP
+  durationMin Int         @default(0)
+  note        String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  sets SetLog[]
+
+  @@index([userId, date])
+}
+
+// One performed set. Weight in grams (10 kg = 10000, Decision #21
+// milli-units convention); null weight = bodyweight move. Either reps
+// (rep-based) or durationSeconds (timed: plank 45s) — at least one required.
+model SetLog {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId       String
+  session         WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exerciseId      String
+  exercise        Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  order           Int
+  setNumber       Int
+  weightGrams     Int?
+  reps            Int?
+  durationSeconds Int?
+  isWarmup        Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+
+  @@index([sessionId, exerciseId, order])
+  @@index([userId, exerciseId])
+}
+
+// One nutrition plan per user (upsert-on-first-touch). Defaults come from
+// the coach guidance: 1.8 g/kg protein, 2500 kcal, +0.25 kg/week lean bulk —
+// always user-editable (Decision #51).
+model NutritionProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calorieTarget     Int      @default(2500)
+  proteinTargetG    Int      @default(113)
+  // g/kg × 1000 (1800 = 1.8 g/kg) — powers the "suggest targets" helper
+  proteinPerKgMilli Int      @default(1800)
+  // lean-bulk pace target in g/week (250 = 0.25 kg/week)
+  weeklyGainTargetG Int      @default(250)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Daily nutrition totals, one row per day (unique userId+date, upsert-replace
+// like BodyMetric — Decision #21). Quick-add chips add to these counters.
+model NutritionDay {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime
+  caloriesKcal Int?
+  proteinG     Int?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// Phase 19 — meal-level food log. Granular entries (one row per food/portion)
+// that live BESIDE the manual NutritionDay row: combined day total = meal
+// sums + quick-adds, each source labeled in the UI (Decision #70). Several
+// entries per meal type are normal — no unique (user, date, meal) pair.
+model MealEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // UTC midnight = the user's calendar day (stored convention)
+  date      DateTime
+  // breakfast | lunch | dinner | snack
+  mealType  String   @default("snack")
+  name      String   // ≤120 — "Paneer bhurji", "Whey scoop"
+  caloriesKcal Int? // 0..5000
+  proteinG  Int?     // 0..500
+  carbsG    Int?     // 0..1000
+  fatG      Int?     // 0..500
+  // Phase 21 — provenance when the entry came from the food library rather
+  // than free text. The macros above stay a SNAPSHOT: editing a FoodItem later
+  // must never silently rewrite what you ate last Tuesday.
+  foodItemId    String?
+  foodItem      FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  recipeId      String?
+  recipe        Recipe?   @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  // milli-units of the food's own unit (50 g = 50000; 1 piece = 1000)
+  quantityMilli Int?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ---------- Phase 24 — Progress photos ----------
+
+// A dated body photo. Stored INSIDE SQLite like Exercise.photoData — this app
+// has no media folder to configure, and these are the most private images it
+// will ever hold, so they stay in the same encrypted-at-rest file as everything
+// else rather than on a disk path or a CDN.
+//
+// Several poses per day are normal (front / side / back), so the unique key is
+// (user, date, pose) — re-shooting the same pose on the same day replaces it.
+model ProgressPhoto {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime
+
+  // front | side | back | other
+  pose String @default("front")
+
+  photoData Bytes
+  photoMime String
+  photoName String?
+
+  // weight at the time, in grams — snapshotted so the comparison view never
+  // has to guess which weigh-in a photo belongs to
+  weightG Int?
+  note    String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date, pose])
+  @@index([userId, date])
+}
+
+// ---------- Phase 23 — Daily coach check-in ----------
+
+// The daily questions a coach actually asks a client. One row per user per
+// day (unique, upsert-replace like BodyMetric and NutritionDay).
+//
+// This table holds ONLY what nothing else already stores. Weight lives in
+// BodyMetric, protein in NutritionDay/MealEntry, training in WorkoutSession —
+// the check-in READS those and prompts for what is missing, so no number is
+// ever kept in two places (Decision #79).
+model DailyCheckIn {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime
+
+  // subjective 1–5 scales, the readiness inputs
+  energy       Int?
+  soreness     Int?
+  stress       Int?
+  sleepQuality Int?
+
+  // measured
+  sleepMinutes Int?
+  steps        Int?
+  waterMl      Int?
+
+  note String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// ---------- Phase 22 — Body profile ----------
+
+// The fixed facts a body-composition panel needs but a scale can't weigh:
+// height, age and sex drive BMR (Mifflin-St Jeor), BMI and the ideal-weight
+// bands. One row per user, every field optional — the Body screen degrades
+// gracefully and simply skips whatever derived figure it can't compute.
+model BodyProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // cm × 1000 (178.0 cm = 178000), same milli-unit convention as BodyMetric
+  heightMilliCm Int?
+  birthYear     Int?
+  // male | female | other — drives the Mifflin-St Jeor constant and the
+  // body-fat bands only; 'other' falls back to skipping sex-specific figures
+  sex           String?
+  // goal body weight in grams (Decision #21): 70 kg = 70000
+  goalWeightG   Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Phase 21 — Food library & thali builder ----------
+
+// One configurable food. Macros are stored PER `basisQty` of `unit` (the
+// default is per 100 g), as integer milli-units so 20.5 g of protein is exact
+// (Decision #21 milli-unit convention). Everything a user adds is theirs —
+// presets are seeded as ordinary rows they can edit or delete.
+model FoodItem {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String
+  brand    String?
+  // g | ml | piece
+  unit     String  @default("g")
+  // the quantity the macros below describe: 100 (g/ml) or 1 (piece)
+  basisQty Int     @default(100)
+
+  caloriesMilliKcal Int
+  proteinMilliG     Int
+  carbsMilliG       Int
+  fatMilliG         Int
+  fiberMilliG       Int?
+
+  // dal | dairy | grain | veg | fruit | nut_seed | soy | supplement | meat | egg | other
+  category String  @default("other")
+  isVeg    Boolean @default(true)
+  // S | A | B | C — protein-source tier, optional coach guidance
+  tier     String?
+  note     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  recipeItems RecipeItem[]
+  mealEntries MealEntry[]
+
+  @@unique([userId, name])
+  @@index([userId, category])
+}
+
+// A saved combination — a thali, a shake, a repeatable plate. Totals are always
+// COMPUTED from the items (never stored), so fixing a food's macros instantly
+// corrects every recipe built on it.
+model Recipe {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String
+  emoji    String  @default("🍛")
+  note     String?
+  servings Int     @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items       RecipeItem[]
+  mealEntries MealEntry[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+// "50 g chana" inside a recipe. Quantity is milli-units of the food's unit.
+model RecipeItem {
+  id            String   @id @default(cuid())
+  recipeId      String
+  recipe        Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  foodItemId    String
+  foodItem      FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+  order         Int      @default(0)
+  quantityMilli Int
+
+  @@index([recipeId, order])
+}
+
+// ---------- Phase 14 — Password Vault (zero-knowledge) ----------
+
+// One per user. Everything here is derived in the BROWSER from the master
+// password — the server can never see it:
+//   salt        random 16 bytes (base64) — PBKDF2 input
+//   iterations  client-chosen PBKDF2-SHA256 rounds (validated 100k–2M)
+//   verifier    AES-256-GCM ciphertext of the fixed string
+//               'saarthi-vault-v1' under the derived key — decrypting it
+//               client-side is the unlock check; the server only carries it.
+model VaultConfig {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salt       String
+  iterations Int
+  verifier   String
+  verifierIv String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// One saved credential. `data` is an opaque AES-256-GCM blob (base64) of the
+// entry JSON { title, username, password, url, notes } — encrypted per-entry
+// with a fresh IV in the browser. The database holds ciphertext only, so a
+// DB leak exposes nothing. Reset (delete config + entries) is instant.
+model VaultEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      String
+  iv        String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+// ---------- Phase 15 — Life Principles (the personal constitution) ----------
+
+// A rule the user has chosen to live by (Ray Dalio-style). Tracked daily:
+// every principle gets exactly one check per calendar day — kept, broken
+// (with an optional "what happened / trigger" note), or n/a (explicitly not
+// applicable that day, e.g. sickness). Unmarked = simply not yet reviewed.
+model Principle {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  // the "why" behind the rule — shown on the card to keep motivation honest
+  detail    String?
+  // character | discipline | money | health | relationships | work
+  category  String   @default("character")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  checks PrincipleCheck[]
+
+  @@index([userId])
+}
+
+// One check per (principle, day), exactly-once via the unique pair — same
+// guarantee as habit check-ins and routine runs. status: kept | broken | na.
+// Re-marking the same day upserts (people change their mind; that's fine).
+model PrincipleCheck {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  principleId String
+  principle   Principle @relation(fields: [principleId], references: [id], onDelete: Cascade)
+  // UTC midnight = the user's calendar day (stored convention)
+  date        DateTime
+  status      String
+  // "what happened / trigger" — captured when broken, optional when kept
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([principleId, date])
+  @@index([userId, date])
+}
+
+// ---------- Phase 16 — Books, Reader & Quotes (Life-OS expansion B) ----------
+
+// One book in the private library. Three formats:
+//  - physical: a real book — progress tracked by page numbers, everything manual
+//  - epub: the EPUB file is uploaded and read inside Saarthi (epub.js);
+//    progress is a CFI position + a percent (EPUBs have no true page numbers)
+//  - pdf: the PDF file is uploaded and viewed in-app; progress tracked by page
+model Book {
+  id          String  @id @default(cuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  author      String?
+  // physical | epub | pdf
+  format      String  @default("physical")
+  // to_read | reading | finished | abandoned
+  status      String  @default("to_read")
+  // 0 = unknown / not applicable (EPUB is percent-tracked)
+  totalPages  Int     @default(0)
+  currentPage Int     @default(0)
+  // uploaded file (epub/pdf) kept in SQLite; 15 MB cap enforced at the API
+  fileData    Bytes?
+  fileName    String?
+  fileMime    String?
+  fileSize    Int?
+  // resume position: EPUB CFI string; unused for page-based books
+  position    String?
+  // EPUB percent 0..100 (2-decimal) — the page-based progress lives in pages
+  percent     Float?
+  rating      Int? // 1..5, set when finished
+  takeaway    String? // one-line lesson, ≤500
+  // comma-separated free-form tags, ≤200 chars ("mindset, stoicism")
+  tags        String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions   ReadingSession[]
+  highlights Highlight[]
+  bookmarks  BookBookmark[]
+  notes      BookNote[]
+  quotes     Quote[]
+
+  @@index([userId, status])
+  @@index([userId, updatedAt])
+}
+
+// Time actually spent reading (and optional pages covered). Several sessions
+// per day are legitimate (morning + night), so unlike checks there is no
+// unique (book, day) pair — the math aggregates.
+model ReadingSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  // UTC midnight = the user's calendar day (stored convention)
+  date      DateTime
+  minutes   Int      @default(0) // 0..1440
+  pages     Int      @default(0) // pages covered this sitting (page-based books)
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([bookId, date])
+}
+
+// Selected text in an EPUB (CFI range) or a passage noted from a page-based
+// book. Carries an optional note ("why this matters") and a pen color.
+model Highlight {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  // EPUB CFI range ("epubcfi(...)") — null for page-based books
+  cfi       String?
+  page      Int?
+  text      String // ≤2000
+  note      String? // ≤1000
+  // yellow | green | blue | pink | purple
+  color     String   @default("yellow")
+  chapter   String? // ≤200 convenience label
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quote Quote?
+
+  @@index([bookId])
+  @@index([userId])
+}
+
+// A saved spot in the book: EPUB CFI or a page number.
+model BookBookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  cfi       String?
+  page      Int?
+  label     String? // ≤80 ("the argument that changed my mind")
+  createdAt DateTime @default(now())
+
+  @@index([bookId])
+}
+
+// Margin note attached to a page (PDF reading + physical books). EPUB notes
+// live on Highlights instead — a selection is always available there.
+model BookNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  page      Int
+  text      String // ≤2000
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bookId])
+}
+
+// One entry in the quotes vault — lines worth carrying for life. May be
+// free-floating, tied to a library book, or born from a highlight
+// (one-to-one: a highlight produces at most one quote).
+model Quote {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text        String // ≤1000
+  author      String? // ≤120 — who said / wrote it
+  source      String? // ≤200 — speech, interview, book title…
+  bookId      String?
+  book        Book?     @relation(fields: [bookId], references: [id], onDelete: SetNull)
+  highlightId String?   @unique
+  highlight   Highlight? @relation(fields: [highlightId], references: [id], onDelete: SetNull)
+  tags        String? // ≤200, comma-separated
+  favorite    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+// Phase 17 — Skill tracker. XP = practice minutes (1 min = 1 XP); the level
+// derives from a fixed cumulative threshold curve in lib/skills.ts, so there
+// is no per-user config and levels are comparable across skills.
+model Skill {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String   // ≤80
+  // technical | communication | creative | physical | social | professional | other
+  category    String   @default("other")
+  // 1..10 — what "done" looks like for this skill; drives the ETA math
+  targetLevel Int      @default(10)
+  // active | paused | archived (paused hides from Today nudges, keeps history)
+  status      String   @default("active")
+  notes       String?  // ≤500 — why this skill matters
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  practices SkillPractice[]
+
+  @@index([userId, status])
+}
+
+// One practice sitting. Several per day are legitimate (morning + night),
+// so unlike checks there is no unique (skill, day) pair — the math aggregates.
+model SkillPractice {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  // UTC midnight = the user's calendar day (stored convention)
+  date      DateTime
+  minutes   Int      // 1..1440
+  note      String?  // ≤500 — what was practiced / what improved
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([skillId, date])
+}
+
+// Phase 17 — People CRM. The reconnect engine derives freshness from
+// touchpoints (source of truth); nothing stale is stored on the person row.
+model Person {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String   // ≤80
+  // friend | family | mentor | colleague | industry | other
+  category    String   @default("friend")
+  // 3 = core (touch ~2×/month), 2 = regular (~monthly), 1 = extended (~quarterly)
+  importance  Int      @default(2)
+  // explicit cadence override in days; null = derive from importance
+  cadenceDays Int?
+  role        String?  // ≤120 — "SDE2 at X", "founder, Y"
+  howMet      String?  // ≤200
+  contact     String?  // ≤200 — phone / handle / link
+  notes       String?  // ≤1000
+  // comma-separated free-form tags, ≤200 ("goa-trip, college")
+  tags        String?
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  touches Touchpoint[]
+
+  @@index([userId, archived])
+}
+
+// Phase 18 — Content Library: a private watch/read-later vault. Videos are
+// YouTube embeds (ID derived from the URL, never stored), articles get an
+// in-app reader view (server-side extraction, cached on the row), files are
+// uploaded to SQLite with the same 15 MB cap as books (Decision #57).
+model ContentItem {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String  // ≤200
+  // video | article | link | file — videos must parse to a YouTube ID
+  kind      String  @default("link")
+  url       String? // ≤1000 — canonical link (the YouTube watch URL for videos)
+  notes     String? // ≤1000 — why you saved it / key takeaways
+  // comma-separated free-form tags, ≤200 ("interview, system-design")
+  tags      String?
+  // inbox (saved for later) | active (watching/reading) | done | archived
+  status    String  @default("inbox")
+  favorite  Boolean @default(false)
+  // uploaded file kept in SQLite; 15 MB cap enforced at the API
+  fileData  Bytes?
+  fileName  String?
+  fileMime  String?
+  fileSize  Int?
+  // cached reader view (extracted article text) — refreshed on demand
+  readerText    String?
+  readerTitle   String?
+  readerFetchedAt DateTime?
+  // set when status moves to done, cleared when it leaves done
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+// Phase 18 — Ideas Lab: capture sparks, grow the promising ones through a
+// lean-canvas pipeline. The ICE score is derived at read time (impact ×
+// confidence ÷ effort) — nothing stale is stored.
+model Idea {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String   // ≤120
+  // business | startup | product | content | personal | other
+  category  String   @default("other")
+  // spark | exploring | planned | launched | parked | dropped
+  status    String   @default("spark")
+  problem   String?  // ≤1000 — what hurts, and for whom
+  audience  String?  // ≤500 — who exactly has this problem
+  value     String?  // ≤500 — the unique promise (why you / why now)
+  solution  String?  // ≤1000 — the smallest thing that could work
+  revenue   String?  // ≤500 — how money arrives
+  costs     String?  // ≤500 — what it takes
+  metrics   String?  // ≤500 — how you'd know it works
+  advantage String?  // ≤500 — the unfair edge / moat
+  nextStep  String?  // ≤200 — the literal next physical action
+  // ICE inputs, 1..10 — score = impact × confidence ÷ effort (derived)
+  impact     Int @default(5)
+  confidence Int @default(5)
+  effort     Int @default(5)
+  tags       String? // ≤200, comma-separated
+  notes      String? // ≤2000
+  // set when status moves to launched, cleared when it leaves
+  launchedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+// One interaction: met, call, message, event. Multiple per day are fine —
+// the engine only cares about the most recent one per person.
+model Touchpoint {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  // UTC midnight = the user's calendar day (stored convention)
+  date      DateTime
+  // meet | call | text | event | other
+  type      String   @default("other")
+  note      String?  // ≤500 — what you talked about / promised to send
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([personId, date])
+}
