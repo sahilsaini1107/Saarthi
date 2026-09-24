@@ -122,9 +122,8 @@ export async function listFoods(
   const rows = await db.foodItem.findMany({
     where: {
       userId,
-      // SQLite's LIKE is case-insensitive for ASCII (Postgres would need
-      // `mode: 'insensitive'` here).
-      ...(opts.q ? { name: { contains: opts.q } } : {}),
+      // mode: 'insensitive' — Postgres `contains` is case-sensitive by default
+      ...(opts.q ? { name: { contains: opts.q, mode: 'insensitive' } } : {}),
       ...(opts.category && isFoodCategory(opts.category) ? { category: opts.category } : {}),
       ...(opts.vegOnly ? { isVeg: true } : {}),
     },
