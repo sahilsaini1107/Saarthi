@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Field } from '@/components/ui/saarthi'
+import { AppFooter, Field } from '@/components/ui/saarthi'
 import { useAuthMutation } from '@/hooks/queries'
 import { useHashRoute } from '@/hooks/use-hash-route'
 
@@ -87,6 +87,8 @@ export function AuthScreen() {
       <button type="button" onClick={() => navigate('/styleguide')} className="text-center text-xs text-muted-foreground underline-offset-2 hover:underline">
         Curious? View the design system gallery →
       </button>
+
+      <AppFooter className="mt-4" />
     </div>
   )
 }

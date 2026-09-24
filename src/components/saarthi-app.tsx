@@ -8,7 +8,7 @@ import { ThemeProvider } from 'next-themes'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BookOpen, House, Settings, Sprout, Wallet } from 'lucide-react'
 import { Toaster } from '@/components/ui/sonner'
-import { SkeletonRow, Fab } from '@/components/ui/saarthi'
+import { AppFooter, SkeletonRow, Fab } from '@/components/ui/saarthi'
 import { cn } from '@/lib/utils'
 import { useHashRoute } from '@/hooks/use-hash-route'
 import { useSession } from '@/hooks/queries'
@@ -224,7 +224,10 @@ function Shell({ user, path, navigate }: { user: UserDTO; path: string; navigate
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-background print:max-w-none">
         <OfflineBanner />
         {celebrating && <ConfettiBurst celebration={celebrating} />}
-        <main className="flex-1 px-4 pt-6 pb-36 print:pb-0">{renderScreen(path, navigate, user)}</main>
+        <main className="flex-1 px-4 pt-6 pb-36 print:pb-0">
+          {renderScreen(path, navigate, user)}
+          <AppFooter />
+        </main>
         <div className="print:hidden">
           <Fab onClick={() => openQuickAdd()} />
         </div>

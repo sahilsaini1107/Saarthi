@@ -242,3 +242,35 @@ export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () 
     </div>
   )
 }
+
+/* ---------- AppFooter ---------- */
+
+/**
+ * Credits, at the end of every screen.
+ *
+ * Deliberately flows with the content rather than sticking to the viewport:
+ * on a 375px phone the bottom bar and FAB already own the bottom edge, and a
+ * fixed footer would eat a third row of chrome from a screen that is mostly
+ * list. It reads once at the end of the scroll and then gets out of the way.
+ *
+ * Kept visible in print — the reports print to PDF, and a document that says
+ * who made it is doing its job.
+ */
+export function AppFooter({ className }: { className?: string }) {
+  return (
+    <footer
+      className={cn(
+        'mt-10 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t pt-5 text-[11px] text-muted-foreground',
+        className,
+      )}
+    >
+      <span>
+        Developed by <span className="font-medium text-foreground">Sahil</span>
+      </span>
+      <span aria-hidden>·</span>
+      <span>
+        Powered by <span className="font-semibold tracking-wide text-primary">Pankh</span>
+      </span>
+    </footer>
+  )
+}
