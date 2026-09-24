@@ -69,7 +69,7 @@ function RdForm({ rd, onClose }: { rd: RdWithMeta | null; onClose: () => void })
       installmentPaise: inst,
       interest: maturityPaise - committed,
     }
-  }, [installment, rate, tenure, startDate, compounding])
+  }, [installment, rate, tenure, startDate, compounding, user.timezone])
 
   const valid = bank.trim().length > 0 && !!preview
 

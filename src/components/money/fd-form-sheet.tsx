@@ -65,7 +65,7 @@ function FdForm({ fd, onClose }: { fd: FdWithMeta | null; onClose: () => void })
       maturityPaise: maturityAmountPaise(P, r, t, c),
       principalPaise: P,
     }
-  }, [principal, rate, tenure, startDate, compounding])
+  }, [principal, rate, tenure, startDate, compounding, user.timezone])
 
   const valid = bank.trim().length > 0 && !!preview
 
