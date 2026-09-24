@@ -15,7 +15,7 @@ import { ArrowLeft } from 'lucide-react'
 
 export function OverviewScreen() {
   const { user, navigate } = useUi()
-  const [month, setMonth] = useState(() => todayISO('Asia/Kolkata').slice(0, 7))
+  const [month, setMonth] = useState(() => todayISO(user.timezone).slice(0, 7))
   const overview = useExpenseOverview(month)
   const today = useToday()
   const prevMonthKey = previousMonth(month)

@@ -4,6 +4,7 @@
 // form only asks for the facts: name, dates, optional budget.
 
 import { useState } from 'react'
+import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,12 +39,13 @@ export function TripFormSheet({
 }
 
 function TripForm({ trip, onClose }: { trip: TripSummary | null; onClose: () => void }) {
+  const { user } = useUi()
   const save = useSaveTrip({ success: trip ? 'Trip updated' : 'Trip planned' })
   const del = useDeleteTrip({ success: 'Trip removed — its expenses stay in the ledger' })
   const [name, setName] = useState(trip?.name ?? '')
   const [emoji, setEmoji] = useState<string>(trip?.emoji ?? '✈️')
   const [destination, setDestination] = useState(trip?.destination ?? '')
-  const [startDate, setStartDate] = useState(trip?.startDate ?? todayISO('Asia/Kolkata'))
+  const [startDate, setStartDate] = useState(trip?.startDate ?? todayISO(user.timezone))
   const [endDate, setEndDate] = useState<string>(trip?.endDate ?? '')
   const [budget, setBudget] = useState(trip?.budgetPaise ? String(trip.budgetPaise / 100) : '')
   const [notes, setNotes] = useState(trip?.notes ?? '')

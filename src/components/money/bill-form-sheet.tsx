@@ -3,6 +3,7 @@
 // Bill create/edit sheet (task 1.6). Mount-fresh form: no effect syncing.
 
 import { useMemo, useState } from 'react'
+import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,6 +37,7 @@ export function BillFormSheet({ open, onOpenChange, bill }: { open: boolean; onO
 }
 
 function BillForm({ bill, onClose }: { bill: BillWithMeta | null; onClose: () => void }) {
+  const { user } = useUi()
   const save = useSaveBill({ success: bill ? 'Bill updated' : 'Bill scheduled' })
   const accounts = useAccounts()
   const categories = useCategories()
@@ -43,7 +45,7 @@ function BillForm({ bill, onClose }: { bill: BillWithMeta | null; onClose: () =>
   const [amount, setAmount] = useState(bill ? String(bill.amountPaise / 100) : '')
   const [frequency, setFrequency] = useState<string>(bill?.frequency ?? 'monthly')
   const [customDays, setCustomDays] = useState(bill?.customDays ? String(bill.customDays) : '30')
-  const [nextDue, setNextDue] = useState(bill?.nextDue ?? todayISO('Asia/Kolkata'))
+  const [nextDue, setNextDue] = useState(bill?.nextDue ?? todayISO(user.timezone))
   const [remindDaysBefore, setRemindDaysBefore] = useState(String(bill?.remindDaysBefore ?? 1))
   const [categoryId, setCategoryId] = useState<string>(bill?.categoryId ?? 'none')
   const [accountId, setAccountId] = useState<string>(bill?.accountId ?? 'none')

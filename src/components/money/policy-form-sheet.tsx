@@ -5,6 +5,7 @@
 // bill form.
 
 import { useMemo, useState } from 'react'
+import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -49,6 +50,7 @@ export function PolicyFormSheet({ open, onOpenChange, policy }: { open: boolean;
 }
 
 function PolicyForm({ policy, onClose }: { policy: InsurancePolicyDTO | null; onClose: () => void }) {
+  const { user } = useUi()
   const save = useSavePolicy({ success: policy ? 'Policy updated' : 'Policy added' })
   const [name, setName] = useState(policy?.name ?? '')
   const [type, setType] = useState<string>(policy?.type ?? 'health')
@@ -57,8 +59,8 @@ function PolicyForm({ policy, onClose }: { policy: InsurancePolicyDTO | null; on
   const [sumAssured, setSumAssured] = useState(policy ? String(policy.sumAssuredPaise / 100) : '')
   const [premium, setPremium] = useState(policy ? String(policy.premiumPaise / 100) : '')
   const [premiumFrequency, setPremiumFrequency] = useState<string>(policy?.premiumFrequency ?? 'annual')
-  const [startDate, setStartDate] = useState(policy?.startDate ?? todayISO('Asia/Kolkata'))
-  const [nextPremiumDue, setNextPremiumDue] = useState(policy?.nextPremiumDue ?? todayISO('Asia/Kolkata'))
+  const [startDate, setStartDate] = useState(policy?.startDate ?? todayISO(user.timezone))
+  const [nextPremiumDue, setNextPremiumDue] = useState(policy?.nextPremiumDue ?? todayISO(user.timezone))
   const [maturityDate, setMaturityDate] = useState(policy?.maturityDate ?? '')
   const [nominee, setNominee] = useState(policy?.nominee ?? '')
 

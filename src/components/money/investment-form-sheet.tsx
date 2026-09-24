@@ -6,6 +6,7 @@
 // and the recent-activity list.
 
 import { useMemo, useState } from 'react'
+import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,6 +60,7 @@ export function InvestmentFormSheet({
 }
 
 function InvestmentForm({ investment, onClose }: { investment: InvestmentWithMeta | null; onClose: () => void }) {
+  const { user } = useUi()
   const save = useSaveInvestment({ success: investment ? 'Investment updated' : 'Investment added' })
   const del = useDeleteInvestment({ success: 'Investment removed' })
   const record = useRecordInvestmentTxn({ success: 'Transaction recorded' })
@@ -76,13 +78,13 @@ function InvestmentForm({ investment, onClose }: { investment: InvestmentWithMet
   const [notes, setNotes] = useState(investment?.notes ?? '')
   const [openQty, setOpenQty] = useState('')
   const [openAmount, setOpenAmount] = useState('')
-  const [openDate, setOpenDate] = useState(todayISO('Asia/Kolkata'))
+  const [openDate, setOpenDate] = useState(todayISO(user.timezone))
 
   // record-txn section
   const [kind, setKind] = useState<InvestmentTxnKind>('buy')
   const [qty, setQty] = useState('')
   const [amount, setAmount] = useState('')
-  const [txnDate, setTxnDate] = useState(todayISO('Asia/Kolkata'))
+  const [txnDate, setTxnDate] = useState(todayISO(user.timezone))
   const [txnNote, setTxnNote] = useState('')
 
   const kindIsQty = kind === 'buy' || kind === 'sell'

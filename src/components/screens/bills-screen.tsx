@@ -20,7 +20,7 @@ export function BillsScreen() {
   const bills = useBills()
   const pay = usePayBill({ success: 'Paid — transaction logged' })
   const [sheet, setSheet] = useState<{ open: boolean; bill: BillWithMeta | null }>({ open: false, bill: null })
-  const [month, setMonth] = useState(() => todayISO('Asia/Kolkata').slice(0, 7))
+  const [month, setMonth] = useState(() => todayISO(user.timezone).slice(0, 7))
 
   const { grid, daysHeader } = useMemo(() => {
     const { start, endExclusive } = monthRange(month)

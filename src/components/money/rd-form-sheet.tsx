@@ -4,6 +4,7 @@
 // functions the server uses). Mount-fresh form: no effect syncing.
 
 import { useMemo, useState } from 'react'
+import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,13 +41,14 @@ export function RdFormSheet({ open, onOpenChange, rd }: { open: boolean; onOpenC
 }
 
 function RdForm({ rd, onClose }: { rd: RdWithMeta | null; onClose: () => void }) {
+  const { user } = useUi()
   const save = useSaveRd({ success: rd ? 'RD updated' : 'RD started — installment bill created' })
   const del = useDeleteRd({ success: 'RD removed (installment bill too)' })
   const [bank, setBank] = useState(rd?.bank ?? '')
   const [installment, setInstallment] = useState(rd ? String(rd.installmentPaise / 100) : '')
   const [rate, setRate] = useState(rd ? String(rd.ratePct) : '')
   const [tenure, setTenure] = useState(rd ? String(rd.tenureMonths) : '')
-  const [startDate, setStartDate] = useState(rd?.startDate ?? todayISO('Asia/Kolkata'))
+  const [startDate, setStartDate] = useState(rd?.startDate ?? todayISO(user.timezone))
   const [compounding, setCompounding] = useState<string>(rd?.compounding ?? 'quarterly')
   const [autoRenew, setAutoRenew] = useState(rd?.autoRenew ?? false)
   const [autoBill, setAutoBill] = useState(true)
@@ -61,7 +63,7 @@ function RdForm({ rd, onClose }: { rd: RdWithMeta | null; onClose: () => void })
     const committed = inst * t
     const maturityPaise = rdMaturityAmountPaise(inst, r, t, c)
     return {
-      maturityDate: isoDayUTC(rdMaturityDateUTC(startDate || todayISO('Asia/Kolkata'), t)),
+      maturityDate: isoDayUTC(rdMaturityDateUTC(startDate || todayISO(user.timezone), t)),
       maturityPaise,
       committed,
       installmentPaise: inst,

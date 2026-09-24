@@ -4,6 +4,7 @@
 // functions the server uses). Mount-fresh form: no effect syncing.
 
 import { useMemo, useState } from 'react'
+import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,13 +42,14 @@ export function FdFormSheet({ open, onOpenChange, fd }: { open: boolean; onOpenC
 }
 
 function FdForm({ fd, onClose }: { fd: FdWithMeta | null; onClose: () => void }) {
+  const { user } = useUi()
   const save = useSaveFd({ success: fd ? 'FD updated' : 'FD added to your ladder' })
   const del = useDeleteFd({ success: 'FD removed' })
   const [bank, setBank] = useState(fd?.bank ?? '')
   const [principal, setPrincipal] = useState(fd ? String(fd.principalPaise / 100) : '')
   const [rate, setRate] = useState(fd ? String(fd.ratePct) : '')
   const [tenure, setTenure] = useState(fd ? String(fd.tenureMonths) : '')
-  const [startDate, setStartDate] = useState(fd?.startDate ?? todayISO('Asia/Kolkata'))
+  const [startDate, setStartDate] = useState(fd?.startDate ?? todayISO(user.timezone))
   const [compounding, setCompounding] = useState<string>(fd?.compounding ?? 'quarterly')
   const [autoRenew, setAutoRenew] = useState(fd?.autoRenew ?? false)
   const [job, setJob] = useState(fd?.job ?? null)
@@ -59,7 +61,7 @@ function FdForm({ fd, onClose }: { fd: FdWithMeta | null; onClose: () => void })
     if (!P || !Number.isFinite(r) || r <= 0 || !Number.isInteger(t) || t < 1) return null
     const c = compounding as Parameters<typeof maturityAmountPaise>[3]
     return {
-      maturityDate: isoDayUTC(maturityDateUTC(startDate || todayISO('Asia/Kolkata'), t)),
+      maturityDate: isoDayUTC(maturityDateUTC(startDate || todayISO(user.timezone), t)),
       maturityPaise: maturityAmountPaise(P, r, t, c),
       principalPaise: P,
     }
