@@ -108,6 +108,10 @@ export function TodayScreen() {
         />
       )}
 
+      {/* training (Phase 13) */}
+      <CheckInTodayCard />
+      <TrainingTodayCard />
+
       {/* habits today (Phase 2) */}
       {d.habitsToday.length > 0 && (
         <section>
@@ -188,6 +192,280 @@ export function TodayScreen() {
         </section>
       )}
 
+      {/* bills due */}
+      <section>
+        <SectionHeader
+          title="Bills due this week"
+          action={
+            <button type="button" onClick={() => navigate('/money/bills')} className="flex items-center text-xs font-medium text-primary">
+              All bills <ArrowRight className="size-3" />
+            </button>
+          }
+        />
+        {d.billsDue.length === 0 ? (
+          <p className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">Nothing due in the next 7 days. Breathe. 🌿</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {d.billsDue.map((b) => (
+              <div key={b.id} className={`flex items-center justify-between gap-2 rounded-2xl border bg-card p-4 ${b.overdue ? 'border-expense/40' : ''}`}>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-muted text-lg" aria-hidden>
+                    {b.emoji}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">
+                      {b.name} {b.overdue && <span className="ml-1 rounded-full bg-expense/10 px-1.5 py-0.5 text-[10px] font-bold text-expense">OVERDUE</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {b.overdue ? `Was due ${formatDayLabel(b.dueDate)}` : b.daysUntilDue === 0 ? 'Due today' : `Due in ${b.daysUntilDue} day${b.daysUntilDue === 1 ? '' : 's'}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Money paise={b.amountPaise} className="text-sm font-semibold" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 rounded-full px-3 text-xs"
+                    disabled={pay.isPending}
+                    onClick={() => pay.mutate({ billId: b.id, dueDate: b.dueDate })}
+                  >
+                    Pay
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+
+      {/* goal tasks due (Phase 3) */}
+      {d.goalTasksToday.length > 0 && (
+        <section>
+          <SectionHeader
+            title="Goal tasks due"
+            action={
+              <button type="button" onClick={() => navigate('/growth/goals')} className="flex items-center text-xs font-medium text-primary">
+                All goals <ArrowRight className="size-3" />
+              </button>
+            }
+          />
+          <div className="flex flex-col gap-2">
+            {d.goalTasksToday.map((t) => (
+              <GoalTaskRow key={t.id} task={t} today={tzToday} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* revisions due (Phase 3) */}
+      {d.revisionsToday.length > 0 && (
+        <section>
+          <SectionHeader
+            title="Revisions due"
+            action={
+              <button type="button" onClick={() => navigate('/growth/study')} className="flex items-center text-xs font-medium text-primary">
+                Study <ArrowRight className="size-3" />
+              </button>
+            }
+          />
+          <div className="flex flex-col gap-2">
+            {d.revisionsToday.map((r) => (
+              <RevisionRow key={r.topicId} revision={r} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* life score (Phase 5.3) */}
+      {!d.hasNoData && <LifeScoreCard score={life.data?.overall ?? null} pillars={{ wealth: life.data?.wealth.score ?? null, growth: life.data?.growth.score ?? null, reflection: life.data?.reflection.score ?? null }} onOpen={() => navigate('/journal')} />}
+
+      {/* quick stats */}
+      <section className="grid grid-cols-2 gap-3">
+        <StatTile
+          label={`Spent · ${formatMonthLabel(d.monthKey).split(' ')[0]}`}
+          value={formatINRCompact(d.monthSpendPaise)}
+          sub={spendDelta === null ? 'No last-month data' : `${spendDelta >= 0 ? '+' : ''}${spendDelta}% vs last month`}
+          tone={spendDelta !== null && spendDelta > 20 ? 'warn' : undefined}
+        />
+        <StatTile
+          label="Net worth"
+          value={formatINRCompact(d.netWorthPaise)}
+          sub={
+            d.netWorthDeltaPaise !== null
+              ? `${d.netWorthDeltaPaise >= 0 ? '▲' : '▼'} ${formatINRCompact(Math.abs(d.netWorthDeltaPaise))} vs last snapshot`
+              : 'Everything you own, minus cards'
+          }
+        />
+        <StatTile label="Liquid money" value={formatINRCompact(d.liquidPaise)} sub="Savings + cash" />
+        <StatTile
+          label="Growing"
+          value={formatINRCompact(d.depositsPaise + d.investmentsValuePaise + d.assetsValuePaise)}
+          sub={`Deposits · investments · assets`}
+        />
+      </section>
+
+
+      {/* budgets (Phase 5.1) */}
+      {d.budgetsToday && (
+        <section>
+          <SectionHeader
+            title="Budgets"
+            action={
+              <button type="button" onClick={() => navigate('/money/budgets')} className="flex items-center text-xs font-medium text-primary">
+                Manage <ArrowRight className="size-3" />
+              </button>
+            }
+          />
+          <button
+            type="button"
+            onClick={() => navigate('/money/budgets')}
+            className="w-full rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold">
+                {formatINRCompact(d.budgetsToday.spentPaise)}{' '}
+                <span className="text-xs font-normal text-muted-foreground">of {formatINRCompact(d.budgetsToday.budgetPaise)} this month</span>
+              </p>
+              {d.budgetsToday.overCount > 0 ? (
+                <span className="rounded-full bg-expense/10 px-2 py-1 text-[10px] font-bold text-expense">{d.budgetsToday.overCount} OVER</span>
+              ) : d.budgetsToday.watchCount > 0 ? (
+                <span className="rounded-full bg-warn/10 px-2 py-1 text-[10px] font-bold text-warn">{d.budgetsToday.watchCount} WATCH</span>
+              ) : (
+                <span className="rounded-full bg-income/10 px-2 py-1 text-[10px] font-bold text-income">ON TRACK</span>
+              )}
+            </div>
+            <div className="mt-2">
+              <ProgressBar
+                value={Math.min(Math.round((d.budgetsToday.spentPaise / Math.max(d.budgetsToday.budgetPaise, 1)) * 100), 100)}
+                tone={d.budgetsToday.overCount ? 'expense' : d.budgetsToday.watchCount ? 'warn' : 'income'}
+                className="h-2"
+              />
+            </div>
+            {d.budgetsToday.topRisk && (
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                {d.budgetsToday.overCount ? `${d.budgetsToday.topRisk} crossed its limit` : `${d.budgetsToday.topRisk} is ahead of pace`}
+              </p>
+            )}
+          </button>
+        </section>
+      )}
+
+      {/* portfolio planner nudge (Phase 8) */}
+      {d.plannerToday && (d.plannerToday.health === 'drift' || d.plannerToday.dicgcOverLimitCount > 0 || (!d.plannerToday.hasTargets && d.plannerToday.health !== 'empty')) && (
+        <button
+          type="button"
+          onClick={() => navigate('/money/planner')}
+          className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-left transition-colors hover:bg-primary/10"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Compass className="size-4.5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">
+              {d.plannerToday.health === 'drift'
+                ? `Portfolio drifting — ${d.plannerToday.driftAlerts[0]?.emoji ?? ''} ${d.plannerToday.driftAlerts[0]?.label ?? 'a bucket'} ${d.plannerToday.driftAlerts[0] && d.plannerToday.driftAlerts[0].driftPp > 0 ? 'over' : 'under'} target`
+                : d.plannerToday.dicgcOverLimitCount > 0
+                  ? `Deposit insurance: ${d.plannerToday.dicgcOverLimitCount} bank(s) above ₹5L DICGC cover`
+                  : 'Give every rupee a job — set your plan'}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {d.plannerToday.hasTargets
+                ? `Income machine ≈ ₹${Math.round(d.plannerToday.monthlyIncomePaise / 100).toLocaleString('en-IN')}/mo · review balance moves`
+                : 'Six jobs, one target plan — decide with full knowledge'}
+            </p>
+          </div>
+          <ArrowRight className="ml-auto size-4 shrink-0 text-primary" />
+        </button>
+      )}
+
+      {/* FD / RD maturity alerts */}
+      {d.maturityAlerts.length > 0 && (
+        <section>
+          <SectionHeader title="Maturity alerts" />
+          <div className="flex flex-col gap-2">
+            {d.maturityAlerts.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => navigate('/money/fds')}
+                className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent"
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`flex size-9 items-center justify-center rounded-xl ${f.level === 'matured' ? 'bg-income/15 text-income' : 'bg-warn/15 text-warn'}`}>
+                    <Landmark className="size-4.5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold">
+                      <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold tracking-wide ${f.kind === 'fd' ? 'bg-primary/10 text-primary' : 'bg-warn/15 text-warn'}`}>
+                        {f.kind.toUpperCase()}
+                      </span>
+                      {f.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {f.level === 'matured' ? 'Matured — ready to renew or reinvest' : `Matures in ${f.daysLeft} day${f.daysLeft === 1 ? '' : 's'}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <Money paise={f.maturityAmountPaise} compact className="text-sm font-semibold" />
+                  <p className="text-xs text-muted-foreground">on maturity</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* insurance premium alerts (Phase 7) */}
+      {d.insuranceToday.length > 0 && (
+        <section>
+          <SectionHeader
+            title="Insurance premiums"
+            action={
+              <button type="button" onClick={() => navigate('/money/insurance')} className="flex items-center text-xs font-medium text-primary">
+                All policies <ArrowRight className="size-3" />
+              </button>
+            }
+          />
+          <div className="flex flex-col gap-2">
+            {d.insuranceToday.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => navigate('/money/insurance')}
+                className={cn('flex items-center justify-between gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent', ['overdue', 'due'].includes(p.level) && 'border-expense/40')}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={cn('flex size-9 items-center justify-center rounded-xl', ['overdue', 'due', 'd1'].includes(p.level) ? 'bg-expense/15 text-expense' : 'bg-warn/15 text-warn')}>
+                    <ShieldCheck className="size-4.5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{p.dueLabel}</p>
+                  </div>
+                </div>
+                <Money paise={p.premiumPaise} className="text-sm font-semibold" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* insights (Phase 5.4) */}
+      {insights.data && insights.data.insights.length > 0 && (
+        <section>
+          <SectionHeader title="Insights" />
+          <div className="flex flex-col gap-2">
+            {insights.data.insights.slice(0, 4).map((i) => {
+              const route = i.route
+              return <InsightCard key={i.id} insight={i} onOpen={route ? () => navigate(route) : undefined} />
+            })}
+          </div>
+        </section>
+      )}
+
       {/* principles today (Phase 15) */}
       {d.principlesToday.length > 0 && (
         <section>
@@ -220,6 +498,116 @@ export function TodayScreen() {
                     principleCheck.mutate({ principleId: p.id, date: tzToday, status })
                   }}
                 />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* goal contributions due (Phase 9) */}
+      {d.goalContributionsToday.length > 0 && (
+        <section>
+          <SectionHeader
+            title="Goal contributions"
+            action={
+              <button type="button" onClick={() => navigate('/growth/goals')} className="flex items-center text-xs font-medium text-primary">
+                All goals <ArrowRight className="size-3" />
+              </button>
+            }
+          />
+          <div className="flex flex-col gap-2">
+            {d.goalContributionsToday.map((g) => (
+              <GoalContributionRow key={g.id} row={g} today={tzToday} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* goal journals due (Phase 11) */}
+      {d.goalJournalsToday.length > 0 && (
+        <section>
+          <SectionHeader
+            title="Goal journals"
+            action={
+              <button type="button" onClick={() => navigate('/growth/goals')} className="flex items-center text-xs font-medium text-primary">
+                All goals <ArrowRight className="size-3" />
+              </button>
+            }
+          />
+          <div className="flex flex-col gap-2">
+            {d.goalJournalsToday.map((r) => (
+              <GoalJournalRow key={r.milestoneId} row={r} today={tzToday} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* journal nudge (Phase 2) */}
+      <section>
+        <button
+          type="button"
+          onClick={() => navigate('/journal')}
+          className="flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg" aria-hidden>
+            {d.journalToday.hasEntry && d.journalToday.mood && isMood(d.journalToday.mood) ? MOOD_META[d.journalToday.mood].emoji : '📔'}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Journal</p>
+            <p className="text-xs text-muted-foreground">
+              {d.journalToday.hasEntry
+                ? d.journalToday.mood && isMood(d.journalToday.mood)
+                  ? `Logged today — feeling ${MOOD_META[d.journalToday.mood].label.toLowerCase()}`
+                  : 'Logged today — nice'
+                : 'Two minutes now, a memory forever'}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+            {d.journalToday.hasEntry ? 'Open' : 'Write'}
+          </span>
+        </button>
+      </section>
+
+
+      {/* skin check (Phase 3) */}
+      <section>
+        <SkinCard
+          today={tzToday}
+          amDone={d.skinToday.amDone}
+          pmDone={d.skinToday.pmDone}
+          streak={d.skinToday.streak}
+          hasProducts={d.skinToday.hasProducts}
+        />
+      </section>
+
+
+      {/* trip (Phase 5.2) */}
+      {d.tripToday && <TripWidget trip={d.tripToday} onOpen={() => navigate(`/money/travel/${d.tripToday!.id}`)} onOpenAll={() => navigate('/money/travel')} />}
+
+      {/* recent */}
+      {d.recentTxns.length > 0 && (
+        <section>
+          <SectionHeader
+            title="Recent activity"
+            action={
+              <button type="button" onClick={() => navigate('/money/transactions')} className="flex items-center text-xs font-medium text-primary">
+                View all <ArrowRight className="size-3" />
+              </button>
+            }
+          />
+          <div className="flex flex-col gap-2">
+            {d.recentTxns.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-3.5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-muted text-lg" aria-hidden>
+                    {t.emoji ?? '❓'}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{t.categoryName ?? 'Uncategorised'}</p>
+                    <p className="truncate text-xs text-muted-foreground">{t.note || `${t.accountName} · ${formatDayLabel(t.date)}`}</p>
+                  </div>
+                </div>
+                <Money paise={t.amountPaise} signed={t.direction as 'in' | 'out'} className="text-sm font-semibold" />
               </div>
             ))}
           </div>
@@ -433,390 +821,6 @@ export function TodayScreen() {
             </div>
             <span className="shrink-0 text-xs font-medium text-primary">Open</span>
           </button>
-        </section>
-      )}
-
-      {/* training (Phase 13) */}
-      <CheckInTodayCard />
-      <TrainingTodayCard />
-
-      {/* goal tasks due (Phase 3) */}
-      {d.goalTasksToday.length > 0 && (
-        <section>
-          <SectionHeader
-            title="Goal tasks due"
-            action={
-              <button type="button" onClick={() => navigate('/growth/goals')} className="flex items-center text-xs font-medium text-primary">
-                All goals <ArrowRight className="size-3" />
-              </button>
-            }
-          />
-          <div className="flex flex-col gap-2">
-            {d.goalTasksToday.map((t) => (
-              <GoalTaskRow key={t.id} task={t} today={tzToday} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* goal contributions due (Phase 9) */}
-      {d.goalContributionsToday.length > 0 && (
-        <section>
-          <SectionHeader
-            title="Goal contributions"
-            action={
-              <button type="button" onClick={() => navigate('/growth/goals')} className="flex items-center text-xs font-medium text-primary">
-                All goals <ArrowRight className="size-3" />
-              </button>
-            }
-          />
-          <div className="flex flex-col gap-2">
-            {d.goalContributionsToday.map((g) => (
-              <GoalContributionRow key={g.id} row={g} today={tzToday} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* goal journals due (Phase 11) */}
-      {d.goalJournalsToday.length > 0 && (
-        <section>
-          <SectionHeader
-            title="Goal journals"
-            action={
-              <button type="button" onClick={() => navigate('/growth/goals')} className="flex items-center text-xs font-medium text-primary">
-                All goals <ArrowRight className="size-3" />
-              </button>
-            }
-          />
-          <div className="flex flex-col gap-2">
-            {d.goalJournalsToday.map((r) => (
-              <GoalJournalRow key={r.milestoneId} row={r} today={tzToday} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* revisions due (Phase 3) */}
-      {d.revisionsToday.length > 0 && (
-        <section>
-          <SectionHeader
-            title="Revisions due"
-            action={
-              <button type="button" onClick={() => navigate('/growth/study')} className="flex items-center text-xs font-medium text-primary">
-                Study <ArrowRight className="size-3" />
-              </button>
-            }
-          />
-          <div className="flex flex-col gap-2">
-            {d.revisionsToday.map((r) => (
-              <RevisionRow key={r.topicId} revision={r} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* life score (Phase 5.3) */}
-      {!d.hasNoData && <LifeScoreCard score={life.data?.overall ?? null} pillars={{ wealth: life.data?.wealth.score ?? null, growth: life.data?.growth.score ?? null, reflection: life.data?.reflection.score ?? null }} onOpen={() => navigate('/journal')} />}
-
-      {/* quick stats */}
-      <section className="grid grid-cols-2 gap-3">
-        <StatTile
-          label={`Spent · ${formatMonthLabel(d.monthKey).split(' ')[0]}`}
-          value={formatINRCompact(d.monthSpendPaise)}
-          sub={spendDelta === null ? 'No last-month data' : `${spendDelta >= 0 ? '+' : ''}${spendDelta}% vs last month`}
-          tone={spendDelta !== null && spendDelta > 20 ? 'warn' : undefined}
-        />
-        <StatTile
-          label="Net worth"
-          value={formatINRCompact(d.netWorthPaise)}
-          sub={
-            d.netWorthDeltaPaise !== null
-              ? `${d.netWorthDeltaPaise >= 0 ? '▲' : '▼'} ${formatINRCompact(Math.abs(d.netWorthDeltaPaise))} vs last snapshot`
-              : 'Everything you own, minus cards'
-          }
-        />
-        <StatTile label="Liquid money" value={formatINRCompact(d.liquidPaise)} sub="Savings + cash" />
-        <StatTile
-          label="Growing"
-          value={formatINRCompact(d.depositsPaise + d.investmentsValuePaise + d.assetsValuePaise)}
-          sub={`Deposits · investments · assets`}
-        />
-      </section>
-
-      {/* budgets (Phase 5.1) */}
-      {d.budgetsToday && (
-        <section>
-          <SectionHeader
-            title="Budgets"
-            action={
-              <button type="button" onClick={() => navigate('/money/budgets')} className="flex items-center text-xs font-medium text-primary">
-                Manage <ArrowRight className="size-3" />
-              </button>
-            }
-          />
-          <button
-            type="button"
-            onClick={() => navigate('/money/budgets')}
-            className="w-full rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold">
-                {formatINRCompact(d.budgetsToday.spentPaise)}{' '}
-                <span className="text-xs font-normal text-muted-foreground">of {formatINRCompact(d.budgetsToday.budgetPaise)} this month</span>
-              </p>
-              {d.budgetsToday.overCount > 0 ? (
-                <span className="rounded-full bg-expense/10 px-2 py-1 text-[10px] font-bold text-expense">{d.budgetsToday.overCount} OVER</span>
-              ) : d.budgetsToday.watchCount > 0 ? (
-                <span className="rounded-full bg-warn/10 px-2 py-1 text-[10px] font-bold text-warn">{d.budgetsToday.watchCount} WATCH</span>
-              ) : (
-                <span className="rounded-full bg-income/10 px-2 py-1 text-[10px] font-bold text-income">ON TRACK</span>
-              )}
-            </div>
-            <div className="mt-2">
-              <ProgressBar
-                value={Math.min(Math.round((d.budgetsToday.spentPaise / Math.max(d.budgetsToday.budgetPaise, 1)) * 100), 100)}
-                tone={d.budgetsToday.overCount ? 'expense' : d.budgetsToday.watchCount ? 'warn' : 'income'}
-                className="h-2"
-              />
-            </div>
-            {d.budgetsToday.topRisk && (
-              <p className="mt-1.5 text-[11px] text-muted-foreground">
-                {d.budgetsToday.overCount ? `${d.budgetsToday.topRisk} crossed its limit` : `${d.budgetsToday.topRisk} is ahead of pace`}
-              </p>
-            )}
-          </button>
-        </section>
-      )}
-
-      {/* trip (Phase 5.2) */}
-      {d.tripToday && <TripWidget trip={d.tripToday} onOpen={() => navigate(`/money/travel/${d.tripToday!.id}`)} onOpenAll={() => navigate('/money/travel')} />}
-
-      {/* insights (Phase 5.4) */}
-      {insights.data && insights.data.insights.length > 0 && (
-        <section>
-          <SectionHeader title="Insights" />
-          <div className="flex flex-col gap-2">
-            {insights.data.insights.slice(0, 4).map((i) => {
-              const route = i.route
-              return <InsightCard key={i.id} insight={i} onOpen={route ? () => navigate(route) : undefined} />
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* FD / RD maturity alerts */}
-      {d.maturityAlerts.length > 0 && (
-        <section>
-          <SectionHeader title="Maturity alerts" />
-          <div className="flex flex-col gap-2">
-            {d.maturityAlerts.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => navigate('/money/fds')}
-                className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent"
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`flex size-9 items-center justify-center rounded-xl ${f.level === 'matured' ? 'bg-income/15 text-income' : 'bg-warn/15 text-warn'}`}>
-                    <Landmark className="size-4.5" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">
-                      <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold tracking-wide ${f.kind === 'fd' ? 'bg-primary/10 text-primary' : 'bg-warn/15 text-warn'}`}>
-                        {f.kind.toUpperCase()}
-                      </span>
-                      {f.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {f.level === 'matured' ? 'Matured — ready to renew or reinvest' : `Matures in ${f.daysLeft} day${f.daysLeft === 1 ? '' : 's'}`}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <Money paise={f.maturityAmountPaise} compact className="text-sm font-semibold" />
-                  <p className="text-xs text-muted-foreground">on maturity</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* portfolio planner nudge (Phase 8) */}
-      {d.plannerToday && (d.plannerToday.health === 'drift' || d.plannerToday.dicgcOverLimitCount > 0 || (!d.plannerToday.hasTargets && d.plannerToday.health !== 'empty')) && (
-        <button
-          type="button"
-          onClick={() => navigate('/money/planner')}
-          className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-left transition-colors hover:bg-primary/10"
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Compass className="size-4.5" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">
-              {d.plannerToday.health === 'drift'
-                ? `Portfolio drifting — ${d.plannerToday.driftAlerts[0]?.emoji ?? ''} ${d.plannerToday.driftAlerts[0]?.label ?? 'a bucket'} ${d.plannerToday.driftAlerts[0] && d.plannerToday.driftAlerts[0].driftPp > 0 ? 'over' : 'under'} target`
-                : d.plannerToday.dicgcOverLimitCount > 0
-                  ? `Deposit insurance: ${d.plannerToday.dicgcOverLimitCount} bank(s) above ₹5L DICGC cover`
-                  : 'Give every rupee a job — set your plan'}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {d.plannerToday.hasTargets
-                ? `Income machine ≈ ₹${Math.round(d.plannerToday.monthlyIncomePaise / 100).toLocaleString('en-IN')}/mo · review balance moves`
-                : 'Six jobs, one target plan — decide with full knowledge'}
-            </p>
-          </div>
-          <ArrowRight className="ml-auto size-4 shrink-0 text-primary" />
-        </button>
-      )}
-
-      {/* insurance premium alerts (Phase 7) */}
-      {d.insuranceToday.length > 0 && (
-        <section>
-          <SectionHeader
-            title="Insurance premiums"
-            action={
-              <button type="button" onClick={() => navigate('/money/insurance')} className="flex items-center text-xs font-medium text-primary">
-                All policies <ArrowRight className="size-3" />
-              </button>
-            }
-          />
-          <div className="flex flex-col gap-2">
-            {d.insuranceToday.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => navigate('/money/insurance')}
-                className={cn('flex items-center justify-between gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent', ['overdue', 'due'].includes(p.level) && 'border-expense/40')}
-              >
-                <div className="flex items-center gap-3">
-                  <span className={cn('flex size-9 items-center justify-center rounded-xl', ['overdue', 'due', 'd1'].includes(p.level) ? 'bg-expense/15 text-expense' : 'bg-warn/15 text-warn')}>
-                    <ShieldCheck className="size-4.5" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.dueLabel}</p>
-                  </div>
-                </div>
-                <Money paise={p.premiumPaise} className="text-sm font-semibold" />
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* bills due */}
-      <section>
-        <SectionHeader
-          title="Bills due this week"
-          action={
-            <button type="button" onClick={() => navigate('/money/bills')} className="flex items-center text-xs font-medium text-primary">
-              All bills <ArrowRight className="size-3" />
-            </button>
-          }
-        />
-        {d.billsDue.length === 0 ? (
-          <p className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">Nothing due in the next 7 days. Breathe. 🌿</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {d.billsDue.map((b) => (
-              <div key={b.id} className={`flex items-center justify-between gap-2 rounded-2xl border bg-card p-4 ${b.overdue ? 'border-expense/40' : ''}`}>
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-muted text-lg" aria-hidden>
-                    {b.emoji}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">
-                      {b.name} {b.overdue && <span className="ml-1 rounded-full bg-expense/10 px-1.5 py-0.5 text-[10px] font-bold text-expense">OVERDUE</span>}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {b.overdue ? `Was due ${formatDayLabel(b.dueDate)}` : b.daysUntilDue === 0 ? 'Due today' : `Due in ${b.daysUntilDue} day${b.daysUntilDue === 1 ? '' : 's'}`}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Money paise={b.amountPaise} className="text-sm font-semibold" />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 rounded-full px-3 text-xs"
-                    disabled={pay.isPending}
-                    onClick={() => pay.mutate({ billId: b.id, dueDate: b.dueDate })}
-                  >
-                    Pay
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* journal nudge (Phase 2) */}
-      <section>
-        <button
-          type="button"
-          onClick={() => navigate('/journal')}
-          className="flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent"
-        >
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg" aria-hidden>
-            {d.journalToday.hasEntry && d.journalToday.mood && isMood(d.journalToday.mood) ? MOOD_META[d.journalToday.mood].emoji : '📔'}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Journal</p>
-            <p className="text-xs text-muted-foreground">
-              {d.journalToday.hasEntry
-                ? d.journalToday.mood && isMood(d.journalToday.mood)
-                  ? `Logged today — feeling ${MOOD_META[d.journalToday.mood].label.toLowerCase()}`
-                  : 'Logged today — nice'
-                : 'Two minutes now, a memory forever'}
-            </p>
-          </div>
-          <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
-            {d.journalToday.hasEntry ? 'Open' : 'Write'}
-          </span>
-        </button>
-      </section>
-
-      {/* skin check (Phase 3) */}
-      <section>
-        <SkinCard
-          today={tzToday}
-          amDone={d.skinToday.amDone}
-          pmDone={d.skinToday.pmDone}
-          streak={d.skinToday.streak}
-          hasProducts={d.skinToday.hasProducts}
-        />
-      </section>
-
-      {/* recent */}
-      {d.recentTxns.length > 0 && (
-        <section>
-          <SectionHeader
-            title="Recent activity"
-            action={
-              <button type="button" onClick={() => navigate('/money/transactions')} className="flex items-center text-xs font-medium text-primary">
-                View all <ArrowRight className="size-3" />
-              </button>
-            }
-          />
-          <div className="flex flex-col gap-2">
-            {d.recentTxns.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-3.5">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-muted text-lg" aria-hidden>
-                    {t.emoji ?? '❓'}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{t.categoryName ?? 'Uncategorised'}</p>
-                    <p className="truncate text-xs text-muted-foreground">{t.note || `${t.accountName} · ${formatDayLabel(t.date)}`}</p>
-                  </div>
-                </div>
-                <Money paise={t.amountPaise} signed={t.direction as 'in' | 'out'} className="text-sm font-semibold" />
-              </div>
-            ))}
-          </div>
         </section>
       )}
 
