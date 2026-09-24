@@ -3,24 +3,25 @@
 //  - every table: id (cuid), userId, createdAt, updatedAt
 //  - money: integer paise (2-decimal safe); aggregates computed in JS
 //  - calendar dates: DateTime at UTC midnight = user's calendar date
-//  - user-scoping enforced in services on EVERY query (RLS-equivalent);
-//    true Postgres RLS policies are an optional hardening step on top of
-//    this, not required for correctness — every query is already scoped.
+//  - user-scoping enforced in services on EVERY query (RLS-equivalent)
 //
-// Provider: Postgres (moved off SQLite so the app runs on serverless hosts
-// like Vercel, whose filesystem is ephemeral/read-only and cannot hold a
-// writable SQLite file). BigInt and Bytes columns behave the same on both
-// providers; the only behavioural difference this schema hit was `contains`
-// filters, which are case-INsensitive by default on SQLite and
-// case-sensitive on Postgres — those call sites now pass
-// `mode: 'insensitive'` explicitly (services/fitness.ts, services/food.ts).
+// Provider: SQLite — the whole database is one file you own (db/custom.db),
+// including every binary upload, so a backup is a file copy and there is no
+// third party holding your data. This is the deliberate trade for NOT running
+// on a serverless host: Vercel's filesystem is ephemeral and read-only, so it
+// cannot hold a writable SQLite file. Self-host on anything with a real disk
+// (see the Caddyfile and the standalone `start` script).
+//
+// The schema stays 1:1 portable to Postgres if that ever changes: only two
+// `contains` filters differ, since SQLite's LIKE is case-insensitive by
+// default while Postgres needs an explicit `mode: 'insensitive'`.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 

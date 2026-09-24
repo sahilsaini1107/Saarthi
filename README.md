@@ -2,7 +2,7 @@
 
 **Wealth · Growth · Reflection** — one self-hosted app for money, training, learning and reflection.
 
-Today-first, goal-first, and built so every manual entry takes under ten seconds. Your data lives in your own Postgres database — self-hosted or a free hosted tier — with no bank aggregation and no telemetry.
+Today-first, goal-first, and built so every manual entry takes under ten seconds. Your data lives in **one SQLite file on your own machine** — no third-party database, no bank aggregation, no telemetry.
 
 > **सारथी** *(saarthi)* — the charioteer. Not the one who runs the race, the one who keeps you pointed the right way.
 
@@ -20,7 +20,7 @@ Today-first, goal-first, and built so every manual entry takes under ten seconds
 
 - [What it does](#what-it-does)
 - [Quick start](#quick-start)
-- [Deploying to Vercel](#deploying-to-vercel)
+- [Hosting it](#hosting-it)
 - [Where is the database?](#where-is-the-database)
 - [Screens](#screens)
 - [How it is built](#how-it-is-built)
@@ -89,7 +89,7 @@ Today-first, goal-first, and built so every manual entry takes under ten seconds
 |---|---|---|
 | **Bun** *(recommended)* | 1.1+ | the repo ships `bun.lock`, and the production `start` script uses Bun |
 | **or Node.js** | ≥ 20.9 (LTS 22 is fine) | required by Next.js 16 — use `npm` / `npx` in place of `bun` |
-| **A Postgres database** | any | a free [Neon](https://neon.tech) or [Supabase](https://supabase.com) project takes under a minute, or run one locally — see [Where is the database?](#where-is-the-database) |
+| *(no database to install)* | — | SQLite is a file; `db:push` creates it. See [Where is the database?](#where-is-the-database) |
 
 macOS and Linux work as-is. On **Windows**, use WSL2 or Git Bash: the `dev` and `start` scripts pipe through `tee`, which `cmd.exe` does not have. (Or run `npx next dev -p 3000` directly.)
 
@@ -107,18 +107,15 @@ bun install          # or: npm install
 cp .env.example .env
 ```
 
-`DATABASE_URL` is the only variable the app needs — a standard Postgres connection string:
+`DATABASE_URL` is the only variable the app needs, and the default is already right:
 
 ```
-DATABASE_URL="postgresql://user:password@host:5432/saarthi?sslmode=require"
+DATABASE_URL="file:../db/custom.db"
 ```
 
-Get one in under a minute from [Neon](https://neon.tech) or [Supabase](https://supabase.com) (both have a free tier and hand you a ready-made connection string), or run Postgres yourself:
+> The path is relative to **`prisma/schema.prisma`**, not the project root. That is why it starts with `../`.
 
-```bash
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres --name saarthi-db postgres:16
-# then: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/saarthi"
-```
+There is no database server to install, no connection string to fetch, and no account to create. SQLite is a file, and `db:push` makes it in the next step.
 
 Nothing else is required. Authentication is scrypt plus session tokens handled in-app, and the password vault's crypto runs entirely in your browser.
 
@@ -126,7 +123,7 @@ Nothing else is required. Authentication is scrypt plus session tokens handled i
 
 ```bash
 bun run db:generate          # prisma generate → Prisma client
-bun run db:push              # prisma db push → creates the tables
+bun run db:push              # prisma db push → creates db/custom.db
 ```
 
 This project uses the **`db push`** workflow — there is no `migrations/` folder. There is also no seed step: the twelve default expense categories are created per user at registration.
@@ -142,101 +139,85 @@ Open **http://localhost:3000**, register with an email and password (no verifica
 - Microphone capture works on `localhost` without HTTPS.
 - To reach it from your phone on the same Wi-Fi, use `http://<your-lan-ip>:3000`. The mic will be blocked over plain HTTP — that is a browser rule, not a bug.
 
-### 5. Production build *(optional, for self-hosting)*
+That is the whole setup. When you are ready to run it somewhere permanent rather than on your laptop, see [Hosting it](#hosting-it) — there is no cloud account to create and no database to provision.
+
+---
+
+## Hosting it
+
+**Serverless hosts cannot run this app.** Vercel, Netlify Functions and friends give each request an ephemeral, read-only filesystem, so a writable SQLite file has nowhere to live — writes vanish between requests, and concurrent instances would each see a different database. That is a deliberate trade: the app keeps a single file you own instead of renting a database from someone.
+
+Host it on anything with a **real disk** instead.
+
+| Option | Notes |
+|---|---|
+| **A box at home** (mini PC, Pi, spare laptop) | Truly local. Reach it from your phone over [Tailscale](https://tailscale.com) or a Cloudflare Tunnel — no public exposure, no cloud. |
+| **A small VPS** (Hetzner, DigitalOcean — ~$5/mo) | Always on, public HTTPS. The included `Caddyfile` handles certificates. |
+| **Railway / Render / Fly.io** | Easiest managed option, but you **must** attach a persistent volume and point `DATABASE_URL` at a path on it, or the file is wiped on every deploy. |
+
+### Running the production build
 
 ```bash
 bun run build        # standalone build, copies static assets and public/
-bun run start         # NODE_ENV=production bun .next/standalone/server.js
+bun run start        # NODE_ENV=production bun .next/standalone/server.js
 ```
 
-`Caddyfile` is only used by a hosted HTTPS preview; you do not need it locally. For deploying to Vercel instead of self-hosting, see the next section.
+That serves on port 3000. Put Caddy or nginx in front for HTTPS; the bundled `Caddyfile` is a working starting point.
 
----
+### If you ever want to go serverless anyway
 
-## Deploying to Vercel
+The schema is 1:1 portable to Postgres. Change `provider` in `prisma/schema.prisma` to `postgresql`, add `mode: 'insensitive'` to the two `contains` filters in `services/fitness.ts` and `services/food.ts` (SQLite's `LIKE` is case-insensitive by default; Postgres's is not), point `DATABASE_URL` at any Postgres, and run `db:push`. Every service already scopes queries by user, which is the hard part of that move.
 
-Vercel's serverless functions have an **ephemeral, read-only filesystem** — they cannot hold a writable SQLite file, which is why the app runs on Postgres rather than the `db/custom.db` file used for local development in earlier versions of this README. If you are seeing
-
-```
-Error validating datasource `db`: You must provide a nonempty URL.
-```
-
-it means step 2 below has not been done yet — `DATABASE_URL` is not set in the Vercel project.
-
-### 1. Get a Postgres database
-
-Any works: [Neon](https://neon.tech), [Supabase](https://supabase.com) or [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres) all have a free tier built for exactly this. Copy the connection string it gives you.
-
-### 2. Set the environment variable
-
-In the Vercel project → **Settings → Environment Variables**, add:
-
-| Key | Value | Environments |
-|---|---|---|
-| `DATABASE_URL` | the connection string from step 1 | Production, Preview, and Development |
-
-Redeploy after adding it — Vercel only picks up new env vars on the next build.
-
-### 3. Push the schema once
-
-Vercel's build step regenerates the Prisma **client** automatically (`postinstall` runs `prisma generate`), but it does not create your tables — that only needs to happen once. From your own machine, pointed at the same `DATABASE_URL` you gave Vercel:
-
-```bash
-DATABASE_URL="<your Vercel connection string>" bun run db:push
-```
-
-After that, redeploy (or trigger the deploy that is already queued) and the app will boot.
-
-### Photo uploads and the request-body cap
-
-Serverless functions on Vercel cap request bodies at roughly **4.5 MB**, and photos travel to the API as base64 inside JSON — which inflates them by a third. A 4 MB phone photo would arrive as ~5.3 MB of request body and be rejected by the platform before the route handler ever ran.
-
-So photos are **resized and re-encoded in your browser before upload** (`src/lib/image-compress.ts`): longest side capped at 1600 px, JPEG quality stepped down until the result is under 2.5 MB, which base64s to ~3.3 MB. A 14 MB source lands at well under 1 MB in practice. The form shows the reduction (“Compressed 13.9 MB → 753 KB”) so nothing happens invisibly.
-
-Two things worth knowing about how this is done:
-
-- **EXIF rotation is applied explicitly.** Canvas `drawImage` ignores a JPEG's EXIF Orientation tag, and browsers disagree on whether `createImageBitmap` honours it — so re-encoding naively would silently rotate photos that every other app shows upright. The tag is parsed and the rotation applied by hand, with `imageOrientation: 'none'` taking the browser out of the decision.
-- **The server limits did not move.** The 5 MB and 8 MB service-layer ceilings still stand. Compression is a client-side courtesy, not the security boundary — a hostile client can still post whatever it likes and still gets rejected.
-
----
+Note that photo uploads travel as base64 inside JSON, and serverless platforms cap request bodies (~4.5 MB on Vercel). Photos are already compressed in the browser to land well under that — see `src/lib/image-compress.ts`.
 
 ## Where is the database?
 
-**A Postgres database** — hosted (Neon, Supabase, Vercel Postgres, your own server) or local, whichever `DATABASE_URL` in your `.env` points at. There is no bundled database file to find; a fresh clone has nothing until you run `bun run db:push` against wherever you have pointed it.
+**One file: `db/custom.db`** at the project root, created by `bun run db:push`.
 
-Everything lives in that database, including binary uploads — book EPUBs and PDFs, content-library files, exercise form photos and progress photos are all columns in Postgres tables. **There is no separate media folder or object-storage bucket** to configure.
+```
+Saarthi/
+├── db/
+│   └── custom.db        ← everything lives here
+├── prisma/
+│   └── schema.prisma    ← the shape of it
+└── src/
+```
 
-### `.env` is never committed
+Everything is inside that single file, including binary uploads — book EPUBs and PDFs, content-library files, exercise form photos and progress photos. **There is no separate media folder** and no object storage to configure.
 
-`.env*` is listed in `.gitignore` (with `.env.example` explicitly un-ignored, since that is the reference template). Your connection string — and by extension every password hash, transaction, account balance, journal entry, body measurement and progress photo behind it — never reaches GitHub.
+### It is deliberately not in this repository
+
+`db/` is listed in `.gitignore`. A database file would otherwise publish password hashes, every transaction, account balances, journal entries, body measurements and progress photos to GitHub the moment you pushed.
+
+So a fresh clone has **no** `db/custom.db` — `bun run db:push` creates an empty one, and you register a new account.
 
 ### Backing it up
 
-Postgres tooling handles this, not a file copy:
+Stop the server and copy the file:
 
 ```bash
-pg_dump "$DATABASE_URL" > backup-$(date +%F).sql
+cp db/custom.db ~/backups/saarthi-$(date +%F).db
 ```
 
-Restore with `psql "$DATABASE_URL" < backup-2026-09-24.sql` against a fresh database.
-
-Neon and Supabase both also offer point-in-time restore and automatic backups from their dashboards — usually the easier path if you are on one of them.
+Restoring is the same copy in reverse. Moving to a new machine means carrying that one file. It is worth putting that copy on a schedule — it is the only thing standing between you and losing everything.
 
 ### Starting fresh
 
 ```bash
-bun run db:reset      # prisma migrate reset — drops and recreates every table
+# stop the dev server first
+rm db/custom.db
+bun run db:push
 ```
 
-Or point `DATABASE_URL` at an entirely new, empty database and run `bun run db:push`.
+### Moving it elsewhere
 
-### Local Postgres instead of a hosted one
+Point `DATABASE_URL` at any path you like, remembering that a relative path resolves from `prisma/`:
 
-```bash
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres --name saarthi-db postgres:16
+```
+DATABASE_URL="file:/absolute/path/to/saarthi.db"
 ```
 
-Then set `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/saarthi"` and run `bun run db:push` as usual.
+Useful when the file should live on a mounted volume — which is exactly what Railway/Render/Fly need (see [Hosting it](#hosting-it)).
 
 ## Screens
 
@@ -269,7 +250,7 @@ src/
 └── hooks/queries.ts  TanStack Query hooks and cache keys
 ```
 
-**Stack** — Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind v4 · shadcn/ui · Prisma 6 + Postgres · TanStack Query · Recharts · Vitest.
+**Stack** — Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind v4 · shadcn/ui · Prisma 6 + SQLite · TanStack Query · Recharts · Vitest.
 
 ### Conventions worth knowing
 
@@ -312,7 +293,7 @@ bun run format        # prettier
 | `bun run lint` · `format` | eslint · prettier |
 | `bun run test` · `test:watch` | vitest |
 | `bun run db:generate` | regenerate the Prisma client |
-| `bun run db:push` | sync the schema into Postgres |
+| `bun run db:push` | sync the schema into `db/custom.db` |
 | `bun run db:reset` | drop and recreate — **destroys all data** |
 
 > **After any `db:push`, restart the dev server.** `db push` regenerates the Prisma client, but a running `next dev` keeps the old one in memory and new models read as `undefined`.
@@ -321,10 +302,10 @@ bun run format        # prettier
 
 ## Security & privacy
 
-- **No analytics, no telemetry, no bank aggregation.** The only outbound calls Saarthi itself makes are the optional AI capture endpoints, and only when you use them. Your data goes to exactly one place — the Postgres database `DATABASE_URL` points at, which is yours whether that is a laptop, your own server, or a hosted provider you chose.
+- **No analytics, no telemetry, no bank aggregation.** The only outbound calls Saarthi itself makes are the optional AI capture endpoints, and only when you use them. Your data goes to exactly one place: a file on a disk you control.
 - **Passwords** are hashed with scrypt. Sessions are database-backed tokens in an httpOnly cookie, with `Authorization: Bearer` as a fallback for iframe and third-party-cookie restrictions. You can list your devices and revoke sessions from Settings.
 - **The password vault is zero-knowledge.** PBKDF2-SHA256 (310k iterations) and AES-256-GCM run in your browser via WebCrypto. The server stores ciphertext and a verifier blob and can never decrypt them. **There is no recovery** — losing the master password means losing the vault.
-- **Progress photos** are stored inside your own Postgres database, served only to your signed-in session with `Cache-Control: private, no-store`.
+- **Progress photos** are stored inside your own SQLite file, served only to your signed-in session with `Cache-Control: private, no-store`.
 - **Rate limiting** on auth and capture endpoints, plus security headers.
 - **Every query is user-scoped** at the service layer — the app-level equivalent of row-level security. True Postgres RLS policies can be layered on top of this later; they are not required for correctness, since every query already filters by the signed-in user.
 
@@ -334,12 +315,13 @@ bun run format        # prettier
 
 | Symptom | Fix |
 |---|---|
-| `You must provide a nonempty URL` / `PrismaClientInitializationError` on boot | `.env` is missing, empty, or `DATABASE_URL` isn't set — locally, check `.env`; on Vercel, check Settings → Environment Variables and redeploy after adding it |
-| `the URL must start with the protocol postgresql://` | `DATABASE_URL` is set but not a Postgres connection string — copy the exact string your provider gave you |
+| `You must provide a nonempty URL` / `PrismaClientInitializationError` on boot | `.env` is missing or empty — `cp .env.example .env` |
+| Data vanishes after every deploy | The host has an ephemeral filesystem. Attach a persistent volume and point `DATABASE_URL` at it, or move off serverless — see [Hosting it](#hosting-it) |
 | A new model reads as `undefined` | Restart the dev server after `db:push` — it regenerates the Prisma client, but a running `next dev` keeps the old one in memory |
 | `tee: command not found` | You are in `cmd.exe` — use WSL2 or Git Bash, or run `npx next dev -p 3000` |
 | Port 3000 is busy | `bun run dev -- -p 3001` |
 | A photo still will not upload | Photos are compressed in-browser before upload; if one still fails, it is likely an unsupported format the browser cannot decode (some HEIC files) — re-save it as JPEG |
+| Uploaded books or photos vanished | They live inside `db/custom.db` — if you deleted it for a fresh start, they went with it |
 | Schema changed after pulling | Re-run `bun run db:push` |
 | Want to wipe everything | `bun run db:reset`, or point `DATABASE_URL` at a fresh empty database and `bun run db:push` |
 
