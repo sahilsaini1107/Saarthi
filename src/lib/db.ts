@@ -20,7 +20,17 @@ function modelSig(): string {
 }
 
 function buildClient(): PrismaClient & { __saarthiModelSig?: string } {
-  const client = new PrismaClient({ log: ['query'] }) as PrismaClient & { __saarthiModelSig?: string }
+  const client = new PrismaClient({
+    // `query` logging prints EVERY statement. That is useful locally and pure
+    // noise (and cost) in a serverless log, so it is dev-only.
+    log: process.env.NODE_ENV === 'production' ? ['warn', 'error'] : ['query', 'warn', 'error'],
+    // The database is remote now, not a local SQLite file. A cold connection
+    // pays TLS + auth before the first statement, which pushed a short
+    // interactive transaction past Prisma's 5 s default and failed it with
+    // `P2028: Transaction already closed` (observed at 5409 ms). These give
+    // every service's transactions headroom for that first round-trip.
+    transactionOptions: { maxWait: 10_000, timeout: 20_000 },
+  }) as PrismaClient & { __saarthiModelSig?: string }
   client.__saarthiModelSig = modelSig()
   return client
 }

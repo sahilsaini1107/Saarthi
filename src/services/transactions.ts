@@ -2,6 +2,7 @@
 // transaction together with the row change, so account balances can never
 // drift from the ledger.
 
+import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { HttpError } from '@/lib/api-helpers'
 import { toUTC, isoDayUTC, monthRange } from '@/lib/date'
@@ -37,22 +38,39 @@ function parseDate(iso: string): Date {
   return toUTC(iso)
 }
 
-async function assertOwned(userId: string, accountId: string) {
-  const account = await db.account.findFirst({ where: { id: accountId, userId } })
+/**
+ * The ownership guards below take the client to run on.
+ *
+ * Inside `db.$transaction(async (tx) => ...)` they MUST be passed `tx`. Calling
+ * them on the global `db` from inside a transaction asks the pool for a SECOND
+ * connection while the transaction's own connection sits idle: it burns the
+ * interactive-transaction timeout on network round-trips, and on a small
+ * serverless pool it deadlocks outright — every concurrent request holds one
+ * connection and waits for another that never frees. That surfaced as
+ * `P2028: Transaction not found` once the app moved from local SQLite (where
+ * queries are sub-millisecond and the pool is irrelevant) to a remote Postgres.
+ *
+ * `PrismaClient` is structurally assignable to `Prisma.TransactionClient`, so
+ * callers outside a transaction can still pass `db`.
+ */
+type Db = Prisma.TransactionClient
+
+async function assertOwned(client: Db, userId: string, accountId: string) {
+  const account = await client.account.findFirst({ where: { id: accountId, userId } })
   if (!account) throw new HttpError('Account not found', 404)
   return account
 }
 
-async function assertCategory(userId: string, categoryId?: string | null) {
+async function assertCategory(client: Db, userId: string, categoryId?: string | null) {
   if (!categoryId) return null
-  const category = await db.category.findFirst({ where: { id: categoryId, userId } })
+  const category = await client.category.findFirst({ where: { id: categoryId, userId } })
   if (!category) throw new HttpError('Category not found', 404)
   return category
 }
 
-async function assertTrip(userId: string, tripId?: string | null) {
+async function assertTrip(client: Db, userId: string, tripId?: string | null) {
   if (!tripId) return null
-  const trip = await db.trip.findFirst({ where: { id: tripId, userId } })
+  const trip = await client.trip.findFirst({ where: { id: tripId, userId } })
   if (!trip) throw new HttpError('Trip not found', 404)
   return trip
 }
@@ -106,10 +124,13 @@ export async function createTransaction(userId: string, input: TxnInput): Promis
     if (existing) return { ...toDTO(existing), deduped: true }
   }
 
+  // Guards run BEFORE the transaction opens, on their own connection, so the
+  // transaction itself is just the two writes that must be atomic together.
+  const account = await assertOwned(db, userId, input.accountId)
+  await assertCategory(db, userId, input.categoryId)
+  await assertTrip(db, userId, input.tripId)
+
   return db.$transaction(async (tx) => {
-    const account = await assertOwned(userId, input.accountId)
-    await assertCategory(userId, input.categoryId)
-    await assertTrip(userId, input.tripId)
     const created = await tx.transaction.create({
       data: {
         userId,
@@ -194,22 +215,24 @@ export async function updateTransaction(
   id: string,
   input: Partial<TxnInput>,
 ): Promise<TransactionDTO> {
+  // Reads and validation happen up front (see the guards' note above); the
+  // transaction then holds only the three writes whose atomicity matters.
+  const existing = await db.transaction.findFirst({ where: { id, userId } })
+  if (!existing) throw new HttpError('Transaction not found', 404)
+  const oldAccount = await db.account.findUnique({ where: { id: existing.accountId } })
+  if (!oldAccount) throw new HttpError('Account not found', 404)
+
+  const nextAccountId = input.accountId ?? existing.accountId
+  const nextAccount = await assertOwned(db, userId, nextAccountId)
+  await assertCategory(db, userId, input.categoryId !== undefined ? input.categoryId : existing.categoryId)
+  await assertTrip(db, userId, input.tripId !== undefined ? input.tripId : existing.tripId)
+
+  const nextAmount = input.amountPaise ?? existing.amountPaise
+  if (!Number.isInteger(nextAmount) || nextAmount <= 0) throw new HttpError('Amount must be positive', 422)
+  const nextDirection = (input.direction ?? existing.direction) as Direction
+  const nextDate = input.date ? parseDate(input.date) : existing.date
+
   return db.$transaction(async (tx) => {
-    const existing = await tx.transaction.findFirst({ where: { id, userId } })
-    if (!existing) throw new HttpError('Transaction not found', 404)
-    const oldAccount = await tx.account.findUnique({ where: { id: existing.accountId } })
-    if (!oldAccount) throw new HttpError('Account not found', 404)
-
-    const nextAccountId = input.accountId ?? existing.accountId
-    const nextAccount = await assertOwned(userId, nextAccountId)
-    await assertCategory(userId, input.categoryId !== undefined ? input.categoryId : existing.categoryId)
-    await assertTrip(userId, input.tripId !== undefined ? input.tripId : existing.tripId)
-
-    const nextAmount = input.amountPaise ?? existing.amountPaise
-    if (!Number.isInteger(nextAmount) || nextAmount <= 0) throw new HttpError('Amount must be positive', 422)
-    const nextDirection = (input.direction ?? existing.direction) as Direction
-    const nextDate = input.date ? parseDate(input.date) : existing.date
-
     // Revert old balance effect, then apply the new one.
     await tx.account.update({
       where: { id: oldAccount.id },
