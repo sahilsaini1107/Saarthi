@@ -335,6 +335,7 @@ bun run format        # prettier
 | Symptom | Fix |
 |---|---|
 | `You must provide a nonempty URL` / `PrismaClientInitializationError` on boot | `.env` is missing, empty, or `DATABASE_URL` isn't set — locally, check `.env`; on Vercel, check Settings → Environment Variables and redeploy after adding it |
+| `the URL must start with the protocol file:` (and the error shows `provider = "sqlite"`) | Your host is building an **old commit**. `main` uses `postgresql`; a short-lived commit used `sqlite`. Redeploy from the latest commit — on Vercel, Deployments → the newest one → Redeploy, and check it is building the current `main` SHA |
 | `the URL must start with the protocol postgresql://` | `DATABASE_URL` is set but not a Postgres connection string — copy the exact string your provider gave you |
 | A new model reads as `undefined` | Restart the dev server after `db:push` — it regenerates the Prisma client, but a running `next dev` keeps the old one in memory |
 | `tee: command not found` | You are in `cmd.exe` — use WSL2 or Git Bash, or run `npx next dev -p 3000` |
