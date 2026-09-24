@@ -11,7 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Field } from '@/components/ui/saarthi'
 import { useClearExerciseMedia, useSetExerciseMedia } from '@/hooks/queries'
-import { youtubeId } from '@/lib/content'
+import { formatBytes, youtubeId } from '@/lib/content'
+import { compressImageFile } from '@/lib/image-compress'
 import { cn } from '@/lib/utils'
 
 export interface ExerciseMediaState {
@@ -19,16 +20,18 @@ export interface ExerciseMediaState {
   hasPhoto: boolean
 }
 
-function fileToBase64(f: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = String(reader.result)
-      resolve(result.slice(result.indexOf(',') + 1))
-    }
-    reader.onerror = () => reject(new Error('Could not read the file'))
-    reader.readAsDataURL(f)
-  })
+/**
+ * Refused before we try to decode it — not an upload limit (compression
+ * handles that), just a guard against a pathological file eating memory.
+ */
+const MAX_SOURCE_BYTES = 40 * 1024 * 1024
+
+interface PickedPhoto {
+  fileName: string
+  mime: string
+  base64: string
+  bytes: number
+  originalBytes: number
 }
 
 export function ExerciseMediaSheet({
@@ -61,7 +64,9 @@ function MediaForm({ exerciseId, media, onClose }: { exerciseId: string; media: 
   const setMedia = useSetExerciseMedia({ success: 'Media saved' })
   const clear = useClearExerciseMedia({ success: 'Media removed' })
   const [url, setUrl] = useState('')
-  const [photo, setPhoto] = useState<File | null>(null)
+  const [photo, setPhoto] = useState<PickedPhoto | null>(null)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const [compressing, setCompressing] = useState(false)
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -77,21 +82,52 @@ function MediaForm({ exerciseId, media, onClose }: { exerciseId: string; media: 
     }
   }
 
+  /**
+   * Compress on pick, not on save: the size line below then reflects what will
+   * actually be sent, and a bad file is caught before the Attach button is hit.
+   */
+  async function onPickPhoto(f: File | null) {
+    setPhotoError(null)
+    setPhoto(null)
+    if (!f) return
+    if (!f.type.startsWith('image/')) {
+      setPhotoError('That file is not an image.')
+      return
+    }
+    if (f.size > MAX_SOURCE_BYTES) {
+      setPhotoError(`That file is ${formatBytes(f.size)} — too large to open.`)
+      return
+    }
+    setCompressing(true)
+    try {
+      const result = await compressImageFile(f)
+      setPhoto({
+        fileName: result.fileName,
+        mime: result.mime,
+        base64: result.base64,
+        bytes: result.bytes,
+        originalBytes: result.originalBytes,
+      })
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : 'That photo could not be processed.')
+    } finally {
+      setCompressing(false)
+    }
+  }
+
   async function savePhoto() {
     if (!photo) return
     setBusy(true)
     try {
       await setMedia.mutateAsync({
         exerciseId,
-        photo: { fileName: photo.name, mime: photo.type || 'image/jpeg', dataBase64: await fileToBase64(photo) },
+        photo: { fileName: photo.fileName, mime: photo.mime, dataBase64: photo.base64 },
       })
       onClose()
     } finally {
       setBusy(false)
     }
   }
-
-  const photoOk = photo ? photo.type.startsWith('image/') && photo.size <= 5 * 1024 * 1024 : false
 
   return (
     <div className="flex max-h-[62vh] flex-col gap-4 overflow-y-auto">
@@ -123,13 +159,13 @@ function MediaForm({ exerciseId, media, onClose }: { exerciseId: string; media: 
         </div>
       </Field>
 
-      <Field label="Form-check photo" hint="JPEG/PNG/WebP · up to 5 MB">
+      <Field label="Form-check photo" hint="Resized on your device before upload">
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          onChange={(e) => onPickPhoto(e.target.files?.[0] ?? null)}
         />
         <div className="flex gap-2">
           <button
@@ -137,17 +173,31 @@ function MediaForm({ exerciseId, media, onClose }: { exerciseId: string; media: 
             onClick={() => fileRef.current?.click()}
             className={cn(
               'flex h-9 flex-1 items-center gap-2 rounded-full border px-3 text-sm text-muted-foreground transition-colors hover:bg-accent',
-              photo && !photoOk && 'border-expense text-expense',
+              photoError && 'border-expense text-expense',
             )}
           >
             <ImageIcon className="size-4 shrink-0" />
-            <span className="truncate">{photo ? photo.name : 'Choose a photo…'}</span>
+            <span className="truncate">
+              {compressing ? 'Preparing…' : photo ? photo.fileName : 'Choose a photo…'}
+            </span>
           </button>
-          <Button size="sm" className="h-9 shrink-0 rounded-full" disabled={!photoOk || busy} onClick={savePhoto}>
+          <Button
+            size="sm"
+            className="h-9 shrink-0 rounded-full"
+            disabled={!photo || busy || compressing}
+            onClick={savePhoto}
+          >
             Attach
           </Button>
         </div>
-        {photo && !photoOk && <p className="text-xs text-expense">Pick an image file up to 5 MB.</p>}
+        {photoError && <p className="text-xs text-expense">{photoError}</p>}
+        {photo && !photoError && (
+          <p className="text-[11px] text-muted-foreground">
+            {photo.originalBytes > photo.bytes
+              ? `Compressed ${formatBytes(photo.originalBytes)} → ${formatBytes(photo.bytes)}`
+              : `Ready · ${formatBytes(photo.bytes)}`}
+          </p>
+        )}
       </Field>
     </div>
   )

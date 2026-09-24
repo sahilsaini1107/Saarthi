@@ -187,9 +187,16 @@ DATABASE_URL="<your Vercel connection string>" bun run db:push
 
 After that, redeploy (or trigger the deploy that is already queued) and the app will boot.
 
-### A real limitation worth knowing
+### Photo uploads and the request-body cap
 
-Serverless functions on Vercel cap request bodies at roughly **4.5 MB**. The exercise form-photo limit (5 MB) and the progress-photo limit (8 MB) both exceed that, so uploading a large photo can fail there specifically — self-hosted deployments have no such cap. If this bites you, the fix is either compressing the photo client-side before upload or moving photo storage to a dedicated blob store (Vercel Blob, S3, R2); neither is implemented yet.
+Serverless functions on Vercel cap request bodies at roughly **4.5 MB**, and photos travel to the API as base64 inside JSON — which inflates them by a third. A 4 MB phone photo would arrive as ~5.3 MB of request body and be rejected by the platform before the route handler ever ran.
+
+So photos are **resized and re-encoded in your browser before upload** (`src/lib/image-compress.ts`): longest side capped at 1600 px, JPEG quality stepped down until the result is under 2.5 MB, which base64s to ~3.3 MB. A 14 MB source lands at well under 1 MB in practice. The form shows the reduction (“Compressed 13.9 MB → 753 KB”) so nothing happens invisibly.
+
+Two things worth knowing about how this is done:
+
+- **EXIF rotation is applied explicitly.** Canvas `drawImage` ignores a JPEG's EXIF Orientation tag, and browsers disagree on whether `createImageBitmap` honours it — so re-encoding naively would silently rotate photos that every other app shows upright. The tag is parsed and the rotation applied by hand, with `imageOrientation: 'none'` taking the browser out of the decision.
+- **The server limits did not move.** The 5 MB and 8 MB service-layer ceilings still stand. Compression is a client-side courtesy, not the security boundary — a hostile client can still post whatever it likes and still gets rejected.
 
 ---
 
@@ -332,7 +339,7 @@ bun run format        # prettier
 | A new model reads as `undefined` | Restart the dev server after `db:push` — it regenerates the Prisma client, but a running `next dev` keeps the old one in memory |
 | `tee: command not found` | You are in `cmd.exe` — use WSL2 or Git Bash, or run `npx next dev -p 3000` |
 | Port 3000 is busy | `bun run dev -- -p 3001` |
-| Photo upload fails on Vercel but works locally | Vercel's ~4.5 MB request-body limit — see [Deploying to Vercel](#deploying-to-vercel) |
+| A photo still will not upload | Photos are compressed in-browser before upload; if one still fails, it is likely an unsupported format the browser cannot decode (some HEIC files) — re-save it as JPEG |
 | Schema changed after pulling | Re-run `bun run db:push` |
 | Want to wipe everything | `bun run db:reset`, or point `DATABASE_URL` at a fresh empty database and `bun run db:push` |
 

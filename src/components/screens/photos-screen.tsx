@@ -16,6 +16,8 @@ import { Chip, EmptyState, ErrorCard, Field, SectionHeader, SkeletonRow } from '
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { useAddProgressPhoto, useDeleteProgressPhoto, useProgressPhotos } from '@/hooks/queries'
 import { formatMilli } from '@/lib/body'
+import { formatBytes } from '@/lib/content'
+import { compressImageFile } from '@/lib/image-compress'
 import { formatDayLabel, todayISO } from '@/lib/date'
 import type { ProgressPhotoDayDTO, ProgressPhotoDTO } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -294,6 +296,21 @@ function UploadSheet({ open, onOpenChange, today }: { open: boolean; onOpenChang
   )
 }
 
+/**
+ * Anything past this is refused before we even try to decode it — not a size
+ * limit on what you can upload (compression handles that), just a guard
+ * against a pathological file exhausting browser memory.
+ */
+const MAX_SOURCE_BYTES = 40 * 1024 * 1024
+
+interface PickedPhoto {
+  name: string
+  mime: string
+  base64: string
+  bytes: number
+  originalBytes: number
+}
+
 function UploadForm({ today, onClose }: { today: string; onClose: () => void }) {
   const add = useAddProgressPhoto({ success: 'Photo saved' })
   const fileRef = useRef<HTMLInputElement>(null)
@@ -301,10 +318,16 @@ function UploadForm({ today, onClose }: { today: string; onClose: () => void }) 
   const [pose, setPose] = useState('front')
   const [note, setNote] = useState('')
   const [preview, setPreview] = useState<string | null>(null)
-  const [file, setFile] = useState<{ name: string; mime: string; base64: string } | null>(null)
+  const [file, setFile] = useState<PickedPhoto | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [compressing, setCompressing] = useState(false)
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+  /**
+   * Compress on pick rather than on save, so the preview shows exactly what
+   * will be uploaded and any problem surfaces immediately instead of after the
+   * user has filled in the rest of the form.
+   */
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
     setError(null)
@@ -312,17 +335,29 @@ function UploadForm({ today, onClose }: { today: string; onClose: () => void }) 
       setError('That file is not an image.')
       return
     }
-    if (f.size > 8 * 1024 * 1024) {
-      setError('That photo is larger than 8 MB — try a smaller one.')
+    if (f.size > MAX_SOURCE_BYTES) {
+      setError(`That file is ${formatBytes(f.size)} — too large to open. Try a photo from your camera roll.`)
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = String(reader.result)
-      setPreview(dataUrl)
-      setFile({ name: f.name, mime: f.type, base64: dataUrl.split(',')[1] ?? '' })
+
+    setCompressing(true)
+    try {
+      const result = await compressImageFile(f)
+      setPreview(`data:${result.mime};base64,${result.base64}`)
+      setFile({
+        name: result.fileName,
+        mime: result.mime,
+        base64: result.base64,
+        bytes: result.bytes,
+        originalBytes: result.originalBytes,
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'That photo could not be processed.')
+      setPreview(null)
+      setFile(null)
+    } finally {
+      setCompressing(false)
     }
-    reader.readAsDataURL(f)
   }
 
   function submit() {
@@ -340,8 +375,13 @@ function UploadForm({ today, onClose }: { today: string; onClose: () => void }) 
         onClick={() => fileRef.current?.click()}
         className="flex aspect-[3/4] max-h-64 w-full items-center justify-center overflow-hidden rounded-2xl border border-dashed bg-card"
       >
-        {preview ? (
-            <img src={preview} alt="Preview" className="size-full object-cover" />
+        {compressing ? (
+          <span className="flex flex-col items-center gap-1 text-sm text-muted-foreground">
+            <Camera className="size-6 animate-pulse" />
+            Preparing photo…
+          </span>
+        ) : preview ? (
+          <img src={preview} alt="Preview" className="size-full object-cover" />
         ) : (
           <span className="flex flex-col items-center gap-1 text-sm text-muted-foreground">
             <Camera className="size-6" />
@@ -352,18 +392,30 @@ function UploadForm({ today, onClose }: { today: string; onClose: () => void }) 
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPick} className="hidden" />
 
       {error && <p className="rounded-xl bg-expense/10 px-3 py-2 text-[11px] text-expense">{error}</p>}
-      {preview && (
-        <button
-          type="button"
-          onClick={() => {
-            setPreview(null)
-            setFile(null)
-            if (fileRef.current) fileRef.current.value = ''
-          }}
-          className="self-start text-[11px] text-muted-foreground underline-offset-2 hover:underline"
-        >
-          <X className="mr-0.5 inline size-3" /> clear photo
-        </button>
+      {file && (
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>
+            {file.originalBytes > file.bytes ? (
+              <>
+                Compressed {formatBytes(file.originalBytes)} →{' '}
+                <span className="font-medium text-foreground">{formatBytes(file.bytes)}</span>
+              </>
+            ) : (
+              <>Ready to upload · {formatBytes(file.bytes)}</>
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setPreview(null)
+              setFile(null)
+              if (fileRef.current) fileRef.current.value = ''
+            }}
+            className="underline-offset-2 hover:underline"
+          >
+            <X className="mr-0.5 inline size-3" /> clear
+          </button>
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
@@ -393,12 +445,16 @@ function UploadForm({ today, onClose }: { today: string; onClose: () => void }) 
         <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Week 4 · morning, fasted" className="h-11 rounded-xl" />
       </Field>
 
-      <Button disabled={!file || add.isPending} className="mt-1 h-12 rounded-xl text-base font-semibold" onClick={submit}>
-        {add.isPending ? 'Saving…' : 'Save photo'}
+      <Button
+        disabled={!file || add.isPending || compressing}
+        className="mt-1 h-12 rounded-xl text-base font-semibold"
+        onClick={submit}
+      >
+        {add.isPending ? 'Saving…' : compressing ? 'Preparing…' : 'Save photo'}
       </Button>
       <p className="pb-2 text-center text-[11px] text-muted-foreground">
         One photo per pose per day — re-shooting the same pose replaces it. Your weight on that day is attached
-        automatically.
+        automatically, and photos are resized on your device before upload.
       </p>
     </div>
   )
