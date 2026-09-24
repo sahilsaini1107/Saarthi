@@ -21,10 +21,40 @@ import type { HabitWithStats, RoutineWithMeta } from '@/lib/types'
 
 type Tab = 'habits' | 'routines'
 
+interface HubCard {
+  path: string
+  emoji: string
+  title: string
+  sub: string
+}
+
+/** One hub tile. Extracted so every section renders identically. */
+function HubTile({ card, onClick }: { card: HubCard; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col gap-2 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xl" aria-hidden>
+          {card.emoji}
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold">{card.title}</p>
+        <p className="line-clamp-2 text-xs text-muted-foreground">{card.sub}</p>
+      </div>
+    </button>
+  )
+}
+
 /* ================= Hub (default /growth) ================= */
 
 export function GrowthHub() {
   const { user, navigate } = useUi()
+  const [showMore, setShowMore] = useState(false)
   const habits = useHabits()
   const routines = useRoutines()
   const goals = useGoals()
@@ -83,175 +113,200 @@ export function GrowthHub() {
   const ideaPipeline = ideaList.filter((i) => i.status === 'spark' || i.status === 'exploring' || i.status === 'planned').length
   const ideaLaunched = ideaList.filter((i) => i.status === 'launched').length
 
-  const cards = [
+  // Habits and routines are one screen with two tabs, so they are one tile now
+  // and the subtitle has to speak for both.
+  const routineCount = (routines.data ?? []).length
+  const habitSub = habitList.length
+    ? `${habitsDone}/${scheduled.length} habits done${routineCount ? ` · ${routinesPlayed}/${routineCount} routines` : ''}`
+    : routineCount
+      ? `${routinesPlayed}/${routineCount} routines played`
+      : 'Build a 66-day streak · chain steps, press play'
+  const goalSub = activeGoals.length ? `${activeGoals.length} active · avg ${goalPct}%` : 'Set goals, break them down'
+  const studySub = activeCourses.length
+    ? `${activeCourses.length} course${activeCourses.length === 1 ? '' : 's'}${revisionsDue ? ` · ${revisionsDue} to revise` : ''}`
+    : 'Paced courses + revisions'
+
+  /**
+   * Grouped, and ordered by how often a thing is actually opened.
+   *
+   * The hub used to be 16 undifferentiated tiles with Reports first and the
+   * daily items (check-in, fitness, body) last, below the fold. Now the
+   * everyday work is at the top, the body stack is one section rather than
+   * four scattered tiles, and the long tail is collapsed behind "More" so it
+   * stays reachable without being in the way.
+   */
+  const sections: { id: string; label: string; cards: HubCard[] }[] = [
     {
-      path: '/reports',
-      emoji: '📊',
-      icon: null,
-      title: 'Reports',
-      sub: 'Per-domain insights · monthly Life Report · print to PDF',
-      tone: 'text-income',
+      id: 'daily',
+      label: 'Every day',
+      cards: [
+        {
+          path: '/growth/checkin',
+          emoji: '\u{1F4CB}',
+          title: 'Daily check-in',
+          sub: checkInSub,
+        },
+        {
+          path: '/growth/habits',
+          emoji: '\u{1F525}',
+          title: 'Habits & routines',
+          sub: habitSub,
+        },
+      ],
     },
     {
-      path: '/growth/principles',
-      emoji: '📜',
-      icon: ScrollText,
-      title: 'Principles',
-      sub: activePrinciples.length
-        ? `${principlesReviewed}/${activePrinciples.length} reviewed today${activePrinciples.some((p) => p.keptStreak > 0) ? ` · best 🔥 ${Math.max(...activePrinciples.map((p) => p.keptStreak))}` : ''}`
-        : 'Your constitution — rules you don’t break',
-      tone: 'text-primary',
+      id: 'body',
+      label: 'Body',
+      cards: [
+        {
+          path: '/growth/fitness',
+          emoji: '\u{1F3CB}\uFE0F',
+          title: 'Fitness',
+          sub: fitnessSub,
+        },
+        {
+          path: '/growth/fitness/food',
+          emoji: '\u{1F35B}',
+          title: 'Food & plates',
+          sub: 'Configure a food once \u00b7 build a plate, get the totals',
+        },
+        {
+          path: '/growth/body',
+          emoji: '\u{1F4AA}',
+          title: 'Body',
+          sub: lastWorkout ? `Last: ${lastWorkout.type} ${lastWorkout.minutes}m` : 'Composition, weight, measurements',
+        },
+        {
+          path: '/growth/body/photos',
+          emoji: '\u{1F4F8}',
+          title: 'Progress photos',
+          sub: 'What the scale cannot show you',
+        },
+      ],
     },
     {
-      path: '/growth/habits',
-      emoji: '🔥',
-      icon: Flame,
-      title: 'Habits',
-      sub: habitList.length ? `${habitsDone}/${scheduled.length} done today · ${habitList.length} tracked` : 'Build a 66-day streak',
-      tone: 'text-warn',
+      id: 'build',
+      label: 'Goals & learning',
+      cards: [
+        {
+          path: '/growth/goals',
+          emoji: '\u{1F3AF}',
+          title: 'Goals',
+          sub: goalSub,
+        },
+        {
+          path: '/growth/study',
+          emoji: '\u{1F4DA}',
+          title: 'Study',
+          sub: studySub,
+        },
+      ],
     },
     {
-      path: '/growth/routines',
-      emoji: '🌅',
-      icon: Repeat2,
-      title: 'Routines',
-      sub: (routines.data ?? []).length ? `${routinesPlayed} played today · ${(routines.data ?? []).length} built` : 'Chain steps, press play',
-      tone: 'text-primary',
-    },
-    {
-      path: '/growth/goals',
-      emoji: '🎯',
-      icon: Target,
-      title: 'Goals',
-      sub: activeGoals.length ? `${activeGoals.length} active · avg ${goalPct}%` : 'Set goals, break them down',
-      tone: 'text-income',
-    },
-    {
-      path: '/growth/study',
-      emoji: '📚',
-      icon: BookOpen,
-      title: 'Study',
-      sub: activeCourses.length ? `${activeCourses.length} course${activeCourses.length === 1 ? '' : 's'}${revisionsDue ? ` · ${revisionsDue} to revise` : ''}` : 'Paced courses + revisions',
-      tone: 'text-primary',
-    },
-    {
-      path: '/growth/content',
-      emoji: '🎬',
-      icon: null,
-      title: 'Content',
-      sub: liveContent.length
-        ? `${contentQueue} to consume · ${contentDone} done${liveContent.some((c) => c.favorite) ? ' · ★ favorites' : ''}`
-        : 'Watch & read in-app · private vault',
-      tone: 'text-primary',
-    },
-    {
-      path: '/growth/ideas',
-      emoji: '💡',
-      icon: null,
-      title: 'Ideas',
-      sub: ideaList.length
-        ? `${ideaPipeline} in pipeline${ideaLaunched ? ` · ${ideaLaunched} launched 🚢` : ''}`
-        : 'Spark → launched · ICE-ranked',
-      tone: 'text-warn',
-    },
-    {
-      path: '/growth/library',
-      emoji: '📖',
-      icon: null,
-      title: 'Library',
-      sub: books.data?.length
-        ? `${(books.data ?? []).filter((b) => b.status === 'reading').length} reading · ${books.data.reduce((s, b) => s + b.minutes7d, 0)}m this week`
-        : 'Read in-app · highlights · notes',
-      tone: 'text-primary',
-    },
-    {
-      path: '/growth/quotes',
-      emoji: '💬',
-      icon: null,
-      title: 'Quotes',
-      sub: quotes.data?.length ? `${quotes.data.length} saved · ${quotes.data.filter((q) => q.favorite).length} favorites` : 'Lines worth carrying for life',
-      tone: 'text-warn',
-    },
-    {
-      path: '/growth/skills',
-      emoji: '⚡',
-      icon: null,
-      title: 'Skills',
-      sub: activeSkills.length
-        ? `${activeSkills.length} tracked${skillsMinutes7d ? ` · ${skillsMinutes7d}m this week` : ''}${skillsBestStreak > 0 ? ` · 🔥${skillsBestStreak}` : ''}`
-        : 'XP for practice minutes · levels · ETA',
-      tone: 'text-primary',
-    },
-    {
-      path: '/growth/people',
-      emoji: '🤝',
-      icon: null,
-      title: 'People',
-      sub: activePeople.length
-        ? peopleDue
-          ? `${peopleDue} need a tap · ${activePeople.length} tracked`
-          : `${activePeople.length} tracked · all in rhythm`
-        : 'Reconnect engine · touchpoints · cadence',
-      tone: 'text-expense',
-    },
-    {
-      path: '/growth/checkin',
-      emoji: '📋',
-      icon: null,
-      title: 'Daily check-in',
-      sub: checkInSub,
-      tone: 'text-primary',
-    },
-    {
-      path: '/growth/fitness',
-      emoji: '🏋️',
-      icon: null,
-      title: 'Fitness',
-      sub: fitnessSub,
-      tone: 'text-primary',
-    },
-    {
-      path: '/growth/body',
-      emoji: '💪',
-      icon: Dumbbell,
-      title: 'Body',
-      sub: lastWorkout ? `Last: ${lastWorkout.type} ${lastWorkout.minutes}m` : 'Workouts, weight, measurements',
-      tone: 'text-expense',
-    },
-    {
-      path: '/growth/skin',
-      emoji: '🧴',
-      icon: null,
-      title: 'Skin',
-      sub: skinStreak ? `${skinStreak}-day streak · ${skin.data?.today.amDone ? 'AM ✓' : 'AM —'}/${skin.data?.today.pmDone ? 'PM ✓' : 'PM —'}` : 'AM/PM checklists + PAO',
-      tone: 'text-income',
+      id: 'more',
+      label: 'More',
+      cards: [
+        {
+          path: '/growth/principles',
+          emoji: '\u{1F4DC}',
+          title: 'Principles',
+          sub: activePrinciples.length
+            ? `${principlesReviewed}/${activePrinciples.length} reviewed today`
+            : 'Rules you don\u2019t break',
+        },
+        {
+          path: '/growth/library',
+          emoji: '\u{1F4D6}',
+          title: 'Library',
+          sub: `${(books.data ?? []).length} books \u00b7 read in-app`,
+        },
+        {
+          path: '/growth/quotes',
+          emoji: '\u{1F4AC}',
+          title: 'Quotes',
+          sub: `${(quotes.data ?? []).length} saved`,
+        },
+        {
+          path: '/growth/content',
+          emoji: '\u{1F3AC}',
+          title: 'Content',
+          sub: contentQueue ? `${contentQueue} queued \u00b7 ${contentDone} done` : 'Watch & read in-app',
+        },
+        {
+          path: '/growth/ideas',
+          emoji: '\u{1F4A1}',
+          title: 'Ideas',
+          sub: ideaPipeline ? `${ideaPipeline} in pipeline \u00b7 ${ideaLaunched} launched` : 'Spark \u2192 launched',
+        },
+        {
+          path: '/growth/skills',
+          emoji: '\u26A1',
+          title: 'Skills',
+          sub: activeSkills.length
+            ? `${activeSkills.length} tracked \u00b7 ${skillsMinutes7d}m this week${skillsBestStreak ? ` \u00b7 ${skillsBestStreak}d streak` : ''}`
+            : 'XP for practice minutes',
+        },
+        {
+          path: '/growth/people',
+          emoji: '\u{1F91D}',
+          title: 'People',
+          sub: activePeople.length
+            ? peopleDue
+              ? `${peopleDue} need a tap`
+              : `${activePeople.length} tracked \u00b7 all in rhythm`
+            : 'Reconnect engine',
+        },
+        {
+          path: '/growth/skin',
+          emoji: '\u{1F9F4}',
+          title: 'Skin',
+          sub: skinStreak ? `${skinStreak}-day streak` : 'AM/PM checklists',
+        },
+      ],
     },
   ]
 
+  const moreCards = sections.find((x) => x.id === 'more')?.cards ?? []
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <h1 className="px-1 text-2xl font-bold tracking-tight">Growth</h1>
 
-      <div className="grid grid-cols-2 gap-3">
-        {cards.map((c) => (
-          <button key={c.path} type="button" onClick={() => navigate(c.path)} className="flex flex-col gap-2 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-            <div className="flex items-center justify-between">
-              <span className="text-xl" aria-hidden>
-                {c.emoji}
-              </span>
-              <ChevronRight className="size-4 text-muted-foreground" />
+      {sections
+        .filter((s) => s.id !== 'more')
+        .map((section) => (
+          <section key={section.id}>
+            <SectionHeader title={section.label} />
+            <div className="grid grid-cols-2 gap-3">
+              {section.cards.map((c) => (
+                <HubTile key={c.path} card={c} onClick={() => navigate(c.path)} />
+              ))}
             </div>
-            <div>
-              <p className="text-sm font-semibold">{c.title}</p>
-              <p className="line-clamp-2 text-xs text-muted-foreground">{c.sub}</p>
-            </div>
-          </button>
+          </section>
         ))}
-      </div>
 
-      <p className="rounded-2xl border border-dashed p-3 text-center text-xs text-muted-foreground">
-        Everything here compounds — streaks, syllabus pace, goal progress. Miss a day, not two.
-      </p>
+      {/* The long tail: reachable, but not competing with the daily work. */}
+      <section>
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          className="flex w-full items-center justify-between rounded-2xl border border-dashed px-4 py-3 text-left"
+          aria-expanded={showMore}
+        >
+          <span className="text-sm font-semibold">More</span>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            {moreCards.length} more
+            <ChevronRight className={cn('size-4 transition-transform', showMore && 'rotate-90')} />
+          </span>
+        </button>
+        {showMore && (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {moreCards.map((c) => (
+              <HubTile key={c.path} card={c} onClick={() => navigate(c.path)} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

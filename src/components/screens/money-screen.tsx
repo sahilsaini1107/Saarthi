@@ -2,6 +2,7 @@
 
 // Money tab hub: net worth, accounts, module links, recent activity.
 
+import { useState } from 'react'
 import { useAccounts, useBills, useBudgets, useFds, useInvestments, useAssets, usePlanner, useRds, useToday, useTrips, useInsurance } from '@/hooks/queries'
 import { useUi } from '@/components/saarthi-app'
 import { EmptyState, ErrorCard, Money, ProgressBar, SectionHeader, SkeletonRow, utilizationTone } from '@/components/ui/saarthi'
@@ -9,10 +10,40 @@ import { Button } from '@/components/ui/button'
 import { ACCOUNT_TYPE_LABELS } from '@/lib/constants'
 import { formatINRCompact } from '@/lib/money'
 import { formatDayLabel } from '@/lib/date'
-import { ArrowRight, Banknote, CalendarClock, ChartPie, Compass, Landmark, LineChart, ListOrdered, Mic, FileUp, PiggyBank, Plane, Plus, ShieldCheck, Target } from 'lucide-react'
+import { ArrowRight, Banknote, CalendarClock, ChartPie, Compass, Landmark, LineChart, ListOrdered, Mic, Plane, Plus, ShieldCheck, Target } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+interface MoneyCard {
+  path: string
+  icon: LucideIcon
+  title: string
+  sub: string
+}
+
+/** One money hub tile. Shared so every section renders identically. */
+function MoneyTile({ card, onClick }: { card: MoneyCard; onClick: () => void }) {
+  const Icon = card.icon
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent"
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
+        <Icon className="size-5" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">{card.title}</p>
+        <p className="truncate text-xs text-muted-foreground">{card.sub}</p>
+      </div>
+    </button>
+  )
+}
 
 export function MoneyScreen() {
   const { navigate, openQuickAdd } = useUi()
+  const [showMore, setShowMore] = useState(false)
   const accounts = useAccounts()
   const fds = useFds()
   const rds = useRds()
@@ -43,6 +74,97 @@ export function MoneyScreen() {
   const nextDeposit = [...(fds.data ?? []), ...(rds.data ?? [])].filter((d) => d.status === 'active' && d.daysLeft >= 0).sort((a, b) => a.daysLeft - b.daysLeft)[0]
   const budgetTotals = budgets.data?.totals
   const ongoingTrip = (trips.data ?? []).find((t) => t.phase === 'ongoing') ?? (trips.data ?? []).filter((t) => t.phase === 'planned').sort((a, b) => a.startDate.localeCompare(b.startDate))[0]
+
+  const moneySections: { id: string; label: string; cards: MoneyCard[] }[] = [
+    {
+      id: 'everyday',
+      label: 'Everyday',
+      cards: [
+        { path: '/money/transactions', icon: ListOrdered, title: 'Transactions', sub: 'Search, filter, edit' },
+        {
+          path: '/money/bills',
+          icon: CalendarClock,
+          title: 'Bills',
+          sub: nextBill
+            ? `Next: ${nextBill.name} \u00b7 ${nextBill.daysUntilDue < 0 ? 'overdue' : `in ${nextBill.daysUntilDue}d`}`
+            : 'Nothing scheduled',
+        },
+        {
+          path: '/money/budgets',
+          icon: Target,
+          title: 'Budgets',
+          sub:
+            budgetTotals && budgetTotals.budgetPaise > 0
+              ? `${formatINRCompact(budgetTotals.spentPaise)} of ${formatINRCompact(budgetTotals.budgetPaise)}${budgetTotals.overCount ? ` \u00b7 ${budgetTotals.overCount} over` : ''}`
+              : 'Monthly caps per category',
+        },
+        // One tile, not two: /money/capture and /money/import are the same
+        // screen with a different opening tab.
+        { path: '/money/capture', icon: Mic, title: 'Capture', sub: 'Voice \u00b7 photo \u00b7 paste \u00b7 CSV import' },
+      ],
+    },
+    {
+      id: 'grow',
+      label: 'Grow it',
+      cards: [
+        {
+          path: '/money/invest',
+          icon: LineChart,
+          title: 'Invest',
+          sub:
+            investments.data?.length || assets.data?.length
+              ? `${formatINRCompact(invTotal + assetTotal)} across markets & assets`
+              : 'Stocks, crypto, property\u2026',
+        },
+        {
+          path: '/money/fds',
+          icon: Landmark,
+          title: 'Deposits',
+          sub:
+            fds.data?.length || rds.data?.length
+              ? `${(fds.data?.length ?? 0) + (rds.data?.length ?? 0)} tracked \u00b7 next ${nextDeposit ? formatDayLabel(nextDeposit.maturityDate) : '\u2014'}`
+              : 'FD & RD ladder',
+        },
+      ],
+    },
+    {
+      id: 'review',
+      label: 'Review',
+      cards: [
+        {
+          path: '/money/overview',
+          icon: ChartPie,
+          title: 'Overview',
+          sub: todayData ? `${formatINRCompact(todayData.monthSpendPaise)} this month` : 'Monthly spending',
+        },
+        // Reports spans money, growth and reflection but used to be reachable
+        // only from a tile inside the Growth hub, where nobody would find it.
+        { path: '/reports', icon: ChartPie, title: 'Reports', sub: 'Per-domain \u00b7 monthly Life Report \u00b7 PDF' },
+      ],
+    },
+  ]
+
+  const moneyMore: MoneyCard[] = [
+    {
+      path: '/money/travel',
+      icon: Plane,
+      title: 'Travel',
+      sub: ongoingTrip
+        ? `${ongoingTrip.emoji} ${ongoingTrip.name}`
+        : (trips.data?.length ?? 0) > 0
+          ? `${trips.data?.length} trip${(trips.data?.length ?? 0) === 1 ? '' : 's'} tracked`
+          : 'Trips & trip expenses',
+    },
+    {
+      path: '/money/insurance',
+      icon: ShieldCheck,
+      title: 'Insurance',
+      sub:
+        insurance.data && insurance.data.summary.policyCount > 0
+          ? `${insurance.data.summary.policyCount} ${insurance.data.summary.policyCount === 1 ? 'policy' : 'policies'}${insurance.data.summary.attentionCount ? ` \u00b7 ${insurance.data.summary.attentionCount} due soon` : ''}`
+          : 'Policies & premium reminders',
+    },
+  ]
 
   return (
     <div className="flex flex-col gap-4">
@@ -135,142 +257,63 @@ export function MoneyScreen() {
         )}
       </section>
 
-      {/* module links */}
-      <section className="grid grid-cols-2 gap-3">
-        <button type="button" onClick={() => navigate('/money/planner')} className="col-span-2 flex items-center gap-3 rounded-2xl bg-primary p-4 text-left text-primary-foreground transition-opacity hover:opacity-95">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-            <Compass className="size-5" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">Planner · every rupee has a job</p>
-            <p className="truncate text-xs opacity-90">
-              {planner.data
-                ? planner.data.health === 'drift'
-                  ? `${planner.data.jobs.filter((j) => j.status === 'drift').length} bucket(s) drifting · income ${formatINRCompact(planner.data.income.monthlyAveragePaise)}/mo`
-                  : planner.data.health === 'aligned'
-                    ? `On plan · income ${formatINRCompact(planner.data.income.monthlyAveragePaise)}/mo`
-                    : 'See your six-job allocation and set targets'
-                : 'See your six-job allocation and set targets'}
-            </p>
+      {/* Planner stays a full-width feature card: it is the one screen that
+          frames every other number on this tab. */}
+      <button
+        type="button"
+        onClick={() => navigate('/money/planner')}
+        className="flex items-center gap-3 rounded-2xl bg-primary p-4 text-left text-primary-foreground transition-opacity hover:opacity-95"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+          <Compass className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Planner \u00b7 every rupee has a job</p>
+          <p className="truncate text-xs opacity-90">
+            {planner.data
+              ? planner.data.health === 'drift'
+                ? `${planner.data.jobs.filter((j) => j.status === 'drift').length} bucket(s) drifting`
+                : planner.data.health === 'aligned'
+                  ? 'All buckets aligned'
+                  : 'Set your targets'
+              : 'Give every rupee a job'}
+          </p>
+        </div>
+      </button>
+
+      {/* Grouped by how often you reach for them, with the once-a-year things
+          tucked behind "More" rather than competing with the daily ledger. */}
+      {moneySections.map((section) => (
+        <section key={section.id}>
+          <SectionHeader title={section.label} />
+          <div className="grid grid-cols-2 gap-3">
+            {section.cards.map((c) => (
+              <MoneyTile key={c.path} card={c} onClick={() => navigate(c.path)} />
+            ))}
           </div>
-          <ArrowRight className="ml-auto size-4 shrink-0 opacity-80" />
-        </button>
-        <button type="button" onClick={() => navigate('/money/invest')} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-income/10 text-income">
-            <LineChart className="size-5" />
+        </section>
+      ))}
+
+      <section>
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          className="flex w-full items-center justify-between rounded-2xl border border-dashed px-4 py-3 text-left"
+          aria-expanded={showMore}
+        >
+          <span className="text-sm font-semibold">More</span>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            {moneyMore.length} more
+            <ArrowRight className={cn('size-4 transition-transform', showMore && 'rotate-90')} />
           </span>
-          <div>
-            <p className="text-sm font-semibold">Invest</p>
-            <p className="text-xs text-muted-foreground">
-              {investments.data?.length || assets.data?.length
-                ? `${formatINRCompact(invTotal + assetTotal)} across markets & assets`
-                : 'Stocks, crypto, property…'}
-            </p>
-          </div>
         </button>
-        <button type="button" onClick={() => navigate('/money/fds')} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Landmark className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Deposits</p>
-            <p className="text-xs text-muted-foreground">
-              {fds.data?.length || rds.data?.length
-                ? `${(fds.data?.length ?? 0) + (rds.data?.length ?? 0)} tracked · next ${nextDeposit ? formatDayLabel(nextDeposit.maturityDate) : '—'}`
-                : 'FD & RD ladder'}
-            </p>
+        {showMore && (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {moneyMore.map((c) => (
+              <MoneyTile key={c.path} card={c} onClick={() => navigate(c.path)} />
+            ))}
           </div>
-        </button>
-        <button type="button" onClick={() => navigate('/money/bills')} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-warn/10 text-warn">
-            <CalendarClock className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Bills</p>
-            <p className="text-xs text-muted-foreground">
-              {nextBill ? `Next: ${nextBill.name} · ${nextBill.daysUntilDue < 0 ? 'overdue' : `in ${nextBill.daysUntilDue}d`}` : 'Nothing scheduled'}
-            </p>
-          </div>
-        </button>
-        <button type="button" onClick={() => navigate('/money/overview')} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-muted text-foreground">
-            <ChartPie className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Overview</p>
-            <p className="text-xs text-muted-foreground">
-              {todayData ? `${formatINRCompact(todayData.monthSpendPaise)} this month` : 'Monthly spending'}
-            </p>
-          </div>
-        </button>
-        <button type="button" onClick={() => navigate('/money/budgets')} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-expense/10 text-expense">
-            <Target className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Budgets</p>
-            <p className="text-xs text-muted-foreground">
-              {budgetTotals && budgetTotals.budgetPaise > 0
-                ? `${formatINRCompact(budgetTotals.spentPaise)} of ${formatINRCompact(budgetTotals.budgetPaise)}${budgetTotals.overCount ? ` · ${budgetTotals.overCount} over` : ''}`
-                : 'Monthly caps per category'}
-            </p>
-          </div>
-        </button>
-        <button type="button" onClick={() => navigate('/money/travel')} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Plane className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Travel</p>
-            <p className="text-xs text-muted-foreground">
-              {ongoingTrip
-                ? `${ongoingTrip.emoji} ${ongoingTrip.name}${ongoingTrip.budgetPaise != null ? ` · ${formatINRCompact(ongoingTrip.spentPaise)} spent` : ''}`
-                : (trips.data?.length ?? 0) > 0
-                  ? `${trips.data?.length} trip${(trips.data?.length ?? 0) === 1 ? '' : 's'} tracked`
-                  : 'Trips with budgets'}
-            </p>
-          </div>
-        </button>
-        <button type="button" onClick={() => navigate('/money/insurance')} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-expense/10 text-expense">
-            <ShieldCheck className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Insurance</p>
-            <p className="text-xs text-muted-foreground">
-              {insurance.data && insurance.data.summary.policyCount > 0
-                ? `${insurance.data.summary.policyCount} ${insurance.data.summary.policyCount === 1 ? 'policy' : 'policies'} · ${formatINRCompact(insurance.data.summary.totalSumAssuredPaise)} cover${insurance.data.summary.attentionCount ? ` · ${insurance.data.summary.attentionCount} due soon` : ''}`
-                : 'Policies & premium reminders'}
-            </p>
-          </div>
-        </button>
-        <button type="button" onClick={() => navigate('/money/capture')} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Mic className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Capture</p>
-            <p className="text-xs text-muted-foreground">Voice · photo · paste a message</p>
-          </div>
-        </button>
-        <button type="button" onClick={() => navigate('/money/import')} className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-muted text-foreground">
-            <FileUp className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Import CSV</p>
-            <p className="text-xs text-muted-foreground">Bank statements with dedupe</p>
-          </div>
-        </button>
-        <button type="button" onClick={() => navigate('/money/transactions')} className="col-span-2 flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-muted text-foreground">
-            <ListOrdered className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Transactions</p>
-            <p className="text-xs text-muted-foreground">Search, filter, edit</p>
-          </div>
-        </button>
+        )}
       </section>
 
       <p className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed p-3 text-center text-xs text-muted-foreground">
