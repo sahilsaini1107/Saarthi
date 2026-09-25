@@ -156,8 +156,14 @@ export function GrowthHub() {
     },
     {
       id: 'body',
-      label: 'Body',
+      label: 'Health & body',
       cards: [
+        {
+          path: '/growth/health',
+          emoji: '\u{1FAC0}',
+          title: 'Health coach',
+          sub: 'Your daily plan across fuel, training, body, supplements and skin',
+        },
         {
           path: '/growth/fitness',
           emoji: '\u{1F3CB}\uFE0F',

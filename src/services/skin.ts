@@ -19,6 +19,8 @@ export interface ProductInput {
   openedDate?: string | null
   paoMonths?: number | null
   status?: string
+  routineAm?: boolean
+  routinePm?: boolean
   notes?: string | null
 }
 
@@ -50,6 +52,8 @@ function shapeProduct(
     openedDate: Date | null
     paoMonths: number | null
     status: string
+    routineAm: boolean
+    routinePm: boolean
     notes: string | null
     createdAt: Date
   },
@@ -63,6 +67,8 @@ function shapeProduct(
     openedDate: p.openedDate ? p.openedDate.toISOString().slice(0, 10) : null,
     paoMonths: p.paoMonths,
     status: p.status,
+    routineAm: p.routineAm,
+    routinePm: p.routinePm,
     notes: p.notes,
     createdAt: p.createdAt.toISOString(),
     pao: paoStatus(
@@ -137,6 +143,8 @@ export async function addProduct(userId: string, input: ProductInput, tz: string
       openedDate: input.openedDate ? toUTC(input.openedDate) : null,
       paoMonths: input.paoMonths ?? null,
       status: input.status ?? 'active',
+      routineAm: input.routineAm ?? false,
+      routinePm: input.routinePm ?? false,
       notes: input.notes?.trim() || null,
     },
   })
@@ -168,6 +176,8 @@ export async function updateProduct(userId: string, productId: string, input: Pr
         input.openedDate !== undefined ? (input.openedDate ? toUTC(input.openedDate) : null) : existing.openedDate,
       paoMonths: input.paoMonths !== undefined ? input.paoMonths : existing.paoMonths,
       status: input.status ?? existing.status,
+      routineAm: input.routineAm ?? existing.routineAm,
+      routinePm: input.routinePm ?? existing.routinePm,
       notes: input.notes !== undefined ? input.notes?.trim() || null : existing.notes,
     },
   })

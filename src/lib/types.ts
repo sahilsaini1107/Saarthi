@@ -712,6 +712,8 @@ export interface SkinProductDTO {
   openedDate: string | null
   paoMonths: number | null
   status: string
+  routineAm: boolean
+  routinePm: boolean
   notes: string | null
   createdAt: string
   pao: {
@@ -733,6 +735,29 @@ export interface SkinPayload {
   streak: number
   /** last 35 days of am-or-pm check-ins for the calendar */
   recent: { iso: string; done: boolean | null }[]
+}
+
+export type SupplementTime = 'morning' | 'afternoon' | 'evening' | 'bedtime' | 'anytime'
+
+export interface SupplementDTO {
+  id: string
+  name: string
+  dose: string | null
+  timeOfDay: SupplementTime
+  weekdays: number[]
+  reminderTime: string | null
+  active: boolean
+  notes: string | null
+  scheduledToday: boolean
+  takenToday: boolean
+  createdAt: string
+}
+
+export interface SupplementsPayload {
+  today: string
+  supplements: SupplementDTO[]
+  scheduledCount: number
+  takenCount: number
 }
 
 /* ---------- Phase 10 — planner ↔ goals link ---------- */

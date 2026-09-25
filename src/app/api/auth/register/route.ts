@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { fail, parseBody } from '@/lib/api-helpers'
+import { failFromError, parseBody } from '@/lib/api-helpers'
 import { clientIpFromRequest, checkAuthRateLimit, pruneRateLimitStores } from '@/lib/rate-limit'
 import { register, SESSION_COOKIE, sessionCookieOptions } from '@/services/auth'
 
@@ -21,8 +21,7 @@ export async function POST(req: Request) {
     res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(req))
     return res
   } catch (err) {
-    const status = (err as { status?: number }).status ?? 400
-    return fail(err instanceof Error ? err.message : 'Registration failed', status)
+    return failFromError(err, 'Registration failed')
   }
 }
 

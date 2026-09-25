@@ -205,6 +205,18 @@ describe('bulkPace', () => {
     expect(pace.kgPerWeek).toBe(0.13)
     expect(pace.verdict).toBe('on_track')
   })
+  it('handles a signed fat-loss target', () => {
+    const onTrack = bulkPace([{ iso: '2026-08-01', g: 80_000 }, { iso: '2026-08-29', g: 78_400 }], -400)
+    const tooSlow = bulkPace([{ iso: '2026-08-01', g: 80_000 }, { iso: '2026-08-29', g: 79_600 }], -400)
+    const tooFast = bulkPace([{ iso: '2026-08-01', g: 80_000 }, { iso: '2026-08-29', g: 77_200 }], -400)
+    expect(onTrack.verdict).toBe('on_track')
+    expect(tooSlow.verdict).toBe('slow')
+    expect(tooFast.verdict).toBe('fast')
+  })
+  it('treats small movement as on track for maintenance', () => {
+    expect(bulkPace([{ iso: '2026-08-01', g: 70_000 }, { iso: '2026-08-29', g: 70_300 }], 0).verdict).toBe('on_track')
+    expect(bulkPace([{ iso: '2026-08-01', g: 70_000 }, { iso: '2026-08-29', g: 71_000 }], 0).verdict).toBe('fast')
+  })
 })
 
 /* ---------- nutrition ---------- */

@@ -9,6 +9,8 @@ const productSchema = z.object({
   openedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   paoMonths: z.number().int().min(1).max(120).nullable().optional(),
   status: z.enum(['active', 'finished', 'discarded']).optional(),
+  routineAm: z.boolean().optional(),
+  routinePm: z.boolean().optional(),
   notes: z.string().max(500).nullable().optional(),
 })
 

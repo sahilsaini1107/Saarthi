@@ -11,6 +11,8 @@ import { ArrowLeft, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { useUi } from '@/components/saarthi-app'
 import { FoodFormSheet } from '@/components/food/food-form-sheet'
 import { PlateBuilderSheet } from '@/components/food/plate-builder-sheet'
+import { NutritionToday } from '@/components/food/nutrition-today'
+import { HealthNav } from '@/components/health/health-nav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Chip, EmptyState, ErrorCard, SectionHeader, SkeletonRow, StatTile } from '@/components/ui/saarthi'
@@ -30,29 +32,34 @@ import { cn } from '@/lib/utils'
 export function FoodScreen() {
   const { user, navigate } = useUi()
   const lib = useFoodLibrary()
-  const [tab, setTab] = useState<'foods' | 'plates'>('foods')
+  const [tab, setTab] = useState<'today' | 'foods' | 'plates'>('today')
   const today = todayISO(user.timezone)
 
   return (
     <div className="flex flex-col gap-4">
       <button
         type="button"
-        onClick={() => navigate('/growth/fitness')}
+        onClick={() => navigate('/growth')}
         className="flex items-center gap-1 self-start text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-4" /> Fitness
+        <ArrowLeft className="size-4" /> Growth
       </button>
       <header className="px-1">
-        <h1 className="text-2xl font-bold tracking-tight">Food &amp; Plates</h1>
-        <p className="text-sm text-muted-foreground">Configure a food once — every plate does the maths for you.</p>
+        <h1 className="text-2xl font-bold tracking-tight">Food</h1>
+        <p className="text-sm text-muted-foreground">Log meals, set your targets, and build foods and plates you can reuse.</p>
       </header>
 
+      <HealthNav active="food" />
+
       <div className="flex gap-2">
+        <Chip active={tab === 'today'} emoji="🥗" label="Today" onClick={() => setTab('today')} />
         <Chip active={tab === 'foods'} emoji="🥣" label="Foods" onClick={() => setTab('foods')} />
         <Chip active={tab === 'plates'} emoji="🍛" label="Plates" onClick={() => setTab('plates')} />
       </div>
 
-      {lib.isLoading ? (
+      {tab === 'today' ? (
+        <NutritionToday />
+      ) : lib.isLoading ? (
         <SkeletonRow />
       ) : lib.isError ? (
         <ErrorCard message={(lib.error as Error).message} onRetry={() => lib.refetch()} />

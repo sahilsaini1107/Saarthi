@@ -19,17 +19,41 @@ export function fail(message: string, status = 400) {
   return NextResponse.json({ error: { message } }, { status })
 }
 
+/**
+ * Turn server failures into useful, non-sensitive API errors.
+ *
+ * Prisma's initialization errors include the generated bundle path and the
+ * database hostname. Returning that message from auth routes both leaks
+ * implementation details and leaves the user with nothing actionable.
+ */
+export function failFromError(err: unknown, fallback = 'Something went wrong') {
+  if (err instanceof HttpError) return fail(err.message, err.status)
+
+  const code = typeof err === 'object' && err !== null && 'code' in err ? String(err.code) : ''
+  const message = err instanceof Error ? err.message : ''
+  const databaseUnavailable =
+    code === 'P1001' ||
+    message.includes("Can't reach database server") ||
+    message.includes('Unable to connect to the database')
+
+  if (databaseUnavailable) {
+    console.error('[database unavailable]', err)
+    return fail('Saarthi cannot reach its database right now. Check DATABASE_URL and make sure the database is running, then try again.', 503)
+  }
+
+  console.error('[api]', err)
+  return fail(fallback, 500)
+}
+
 /** Route-handler wrapper: resolves the session user or 401s. */
 export async function withUser<T>(handler: (user: User) => Promise<T>) {
-  const user = await getSessionUser()
-  if (!user) return fail('Not signed in', 401)
   try {
+    const user = await getSessionUser()
+    if (!user) return fail('Not signed in', 401)
     const result = await handler(user)
     return ok(result)
   } catch (err) {
-    if (err instanceof HttpError) return fail(err.message, err.status)
-    console.error('[api]', err)
-    return fail('Something went wrong', 500)
+    return failFromError(err)
   }
 }
 

@@ -94,6 +94,8 @@ model User {
   bodyProfile    BodyProfile?
   dailyCheckIns  DailyCheckIn[]
   progressPhotos ProgressPhoto[]
+  supplements     Supplement[]
+  supplementLogs  SupplementLog[]
 }
 
 model Session {
@@ -750,6 +752,9 @@ model SkinProduct {
   paoMonths  Int?
   // active | finished | discarded
   status     String    @default("active")
+  // User-configurable placement in the daily skincare routine.
+  routineAm  Boolean   @default(false)
+  routinePm  Boolean   @default(false)
   notes      String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -770,6 +775,42 @@ model SkinCheckIn {
 
   // one row per day; AM/PM toggles upsert into it
   @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// User-defined vitamins and supplements. Saarthi tracks the schedule and
+// adherence; it deliberately does not prescribe doses or diagnose deficiency.
+model Supplement {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  dose         String?
+  // morning | afternoon | evening | bedtime | anytime
+  timeOfDay    String   @default("morning")
+  // comma-separated weekday numbers, 0 (Sun) through 6 (Sat)
+  weekdays     String   @default("0,1,2,3,4,5,6")
+  reminderTime String?
+  active       Boolean  @default(true)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  logs SupplementLog[]
+
+  @@index([userId, active])
+}
+
+model SupplementLog {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplementId String
+  supplement   Supplement @relation(fields: [supplementId], references: [id], onDelete: Cascade)
+  date         DateTime
+  takenAt      DateTime   @default(now())
+
+  @@unique([supplementId, date])
   @@index([userId, date])
 }
 

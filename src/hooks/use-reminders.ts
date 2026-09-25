@@ -18,7 +18,7 @@ import {
 } from '@/lib/reminders'
 import { isScheduledOn } from '@/lib/habits'
 import { todayISO } from '@/lib/date'
-import { useHabits, useRoutines, useToday } from '@/hooks/queries'
+import { useHabits, useRoutines, useSupplements, useToday } from '@/hooks/queries'
 
 const JOURNAL_NUDGE_KEY = 'saarthi_journal_nudge'
 
@@ -65,6 +65,7 @@ export function useReminders() {
   // Only poll the data the engine needs when notifications are actually on.
   const habits = useHabits(permission === 'granted')
   const routines = useRoutines(permission === 'granted')
+  const supplements = useSupplements(permission === 'granted')
   const todayQ = useToday(permission === 'granted')
 
   useEffect(() => {
@@ -95,6 +96,17 @@ export function useReminders() {
           doneToday: r.todayRun != null,
         })
       }
+      for (const supplement of supplements.data?.supplements ?? []) {
+        items.push({
+          id: supplement.id,
+          kind: 'supplement',
+          name: supplement.name,
+          emoji: '💊',
+          time: supplement.reminderTime,
+          scheduledToday: supplement.scheduledToday,
+          doneToday: supplement.takenToday,
+        })
+      }
       const journalTime = getJournalNudge()
       if (journalTime) {
         items.push({
@@ -116,7 +128,7 @@ export function useReminders() {
     tick()
     const iv = setInterval(tick, 30_000)
     return () => clearInterval(iv)
-  }, [permission, today, habits.data, routines.data, todayQ.data])
+  }, [permission, today, habits.data, routines.data, supplements.data, todayQ.data])
 
   async function enable() {
     const result = await requestNotificationPermission()

@@ -49,6 +49,7 @@ import { QuotesScreen } from '@/components/reading/quotes-screen'
 import { FitnessScreen } from '@/components/screens/fitness-screen'
 import { SessionScreen } from '@/components/fitness/session-view'
 import { FoodScreen } from '@/components/screens/food-screen'
+import { HealthCoachScreen } from '@/components/screens/health-coach-screen'
 import { CheckInScreen } from '@/components/screens/checkin-screen'
 import { PhotosScreen } from '@/components/screens/photos-screen'
 import { JournalScreen } from '@/components/screens/journal-screen'
@@ -140,6 +141,7 @@ function renderScreen(path: string, navigate: (to: string) => void, user: UserDT
   if (path === '/growth/goals') return <GoalsScreen />
   if (path === '/growth/study') return <StudyScreen />
   if (path === '/growth/fitness') return <FitnessScreen />
+  if (path === '/growth/health') return <HealthCoachScreen />
   if (path === '/growth/checkin') return <CheckInScreen />
   if (path === '/growth/fitness/food') return <FoodScreen />
   if (path.startsWith('/growth/fitness/session/')) return <SessionScreen sessionId={path.split('/')[4]} />

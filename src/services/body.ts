@@ -433,7 +433,7 @@ export async function bodyComposition(
   const paceRaw = weightSeries
     ? bulkPace(
         weightSeries.points.map((p) => ({ iso: p.iso, g: p.valueMilli })),
-        Math.abs(weeklyTargetG) || 250,
+        weeklyTargetG,
       )
     : null
 

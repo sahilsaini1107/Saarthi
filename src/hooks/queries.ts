@@ -61,6 +61,8 @@ import {
   ContentItemDTO,
   IdeaDTO,
   SessionDTO,
+  SupplementsPayload,
+  SupplementTime,
 } from '@/lib/types'
 import type { AccountWithUtilization } from '@/services/accounts'
 import type { BillWithMeta } from '@/services/bills'
@@ -109,6 +111,7 @@ export const qk = {
   workouts: ['workouts'] as const,
   bodyMetrics: ['body-metrics'] as const,
   skin: ['skin'] as const,
+  supplements: ['supplements'] as const,
   budgets: ['budgets'] as const,
   trips: ['trips'] as const,
   trip: (id: string) => ['trip', id] as const,
@@ -306,6 +309,10 @@ export function useBodyMetrics(enabled = true) {
 
 export function useSkin(enabled = true) {
   return useQuery({ queryKey: qk.skin, queryFn: () => api<SkinPayload>('/api/skin'), enabled })
+}
+
+export function useSupplements(enabled = true) {
+  return useQuery({ queryKey: qk.supplements, queryFn: () => api<SupplementsPayload>('/api/health/supplements'), enabled })
 }
 
 /* ---------- Phase 5 — Intelligence layer ---------- */
@@ -2755,6 +2762,45 @@ export function useProgressPhotos(enabled = true) {
     queryKey: qk.photos,
     queryFn: () => api<ProgressPhotosPayloadDTO>('/api/photos'),
     enabled,
+  })
+}
+
+export interface SupplementMutationInput {
+  id?: string
+  name: string
+  dose?: string | null
+  timeOfDay?: SupplementTime
+  weekdays?: number[]
+  reminderTime?: string | null
+  active?: boolean
+  notes?: string | null
+}
+
+export function useSaveSupplement(msg?: Msg) {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: ({ id, ...input }: SupplementMutationInput) =>
+      id
+        ? api<SupplementsPayload>(`/api/health/supplements/${id}`, { method: 'PATCH', json: input })
+        : api<SupplementsPayload>('/api/health/supplements', { method: 'POST', json: input }),
+    onSuccess: async () => {
+      await invalidate([qk.supplements])
+      if (msg?.success) toast.success(msg.success)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+}
+
+export function useSupplementCheckIn(msg?: Msg) {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: ({ id, date, taken }: { id: string; date: string; taken: boolean }) =>
+      api<SupplementsPayload>(`/api/health/supplements/${id}/checkin`, { method: 'POST', json: { date, taken } }),
+    onSuccess: async () => {
+      await invalidate([qk.supplements])
+      if (msg?.success) toast.success(msg.success)
+    },
+    onError: (e: Error) => toast.error(e.message),
   })
 }
 

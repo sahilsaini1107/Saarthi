@@ -151,7 +151,7 @@ function CreateForm({ onClose }: { onClose: () => void }) {
 
       {tab === 'preset' ? (
         <div className="flex flex-col gap-3">
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
             {PLAN_PRESETS.map((p) => (
               <button
                 key={p.id}
@@ -283,6 +283,7 @@ function CreateForm({ onClose }: { onClose: () => void }) {
       <Button
         disabled={create.isPending || (tab === 'blank' && !blankValid) || (tab === 'generate' && !generated)}
         onClick={submit}
+        className="sticky bottom-0 h-11 shrink-0 rounded-xl shadow-lg"
       >
         {create.isPending ? 'Creating…' : tab === 'generate' ? `Create ${generated?.name ?? 'plan'}` : 'Create plan'}
       </Button>

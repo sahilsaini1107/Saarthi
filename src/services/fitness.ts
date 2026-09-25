@@ -605,6 +605,16 @@ export async function createSession(
   input: { planDayId?: string; label?: string; date?: string },
   tz: string,
 ): Promise<WorkoutSessionDetailDTO> {
+  // A workout is an active flow, not a background record. Repeated taps,
+  // refresh retries, or starting a second plan day should resume the existing
+  // open workout instead of creating competing sessions.
+  const open = await db.workoutSession.findFirst({
+    where: { userId, durationMin: 0 },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  })
+  if (open) return sessionDetail(userId, open.id, tz)
+
   const date = checkISO(input.date ?? todayISO(tz))
   let label = input.label?.trim() ?? ''
   let planId: string | null = null

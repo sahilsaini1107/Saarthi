@@ -15,6 +15,7 @@ import { useUi } from '@/components/saarthi-app'
 import { CompositionSheet } from '@/components/body/composition-sheet'
 import { MetricCard } from '@/components/body/composition-panel'
 import { ProfileSheet } from '@/components/body/profile-sheet'
+import { HealthNav } from '@/components/health/health-nav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Chip, EmptyState, ErrorCard, Field, SectionHeader, SkeletonRow, StatTile } from '@/components/ui/saarthi'
@@ -37,7 +38,12 @@ const PACE_LABELS: Record<string, string> = {
 export function BodyScreen() {
   const { user, navigate } = useUi()
   const today = todayISO(user.timezone)
-  const [goal, setGoal] = useState<BodyGoal>('lean_bulk')
+  const goalKey = `saarthi:body-goal:${user.id}`
+  const [goal, setGoal] = useState<BodyGoal>(() => {
+    if (typeof window === 'undefined') return 'lean_bulk'
+    const saved = window.localStorage.getItem(goalKey)
+    return BODY_GOALS.some((item) => item.key === saved) ? (saved as BodyGoal) : 'lean_bulk'
+  })
   const workouts = useWorkouts()
   const composition = useBodyComposition(goal)
   const [tab, setTab] = useState<'body' | 'movement'>('body')
@@ -46,6 +52,11 @@ export function BodyScreen() {
   const [workoutOpen, setWorkoutOpen] = useState(false)
 
   const comp = composition.data
+
+  function chooseGoal(next: BodyGoal) {
+    setGoal(next)
+    window.localStorage.setItem(goalKey, next)
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -57,7 +68,10 @@ export function BodyScreen() {
         <ArrowLeft className="size-4" /> Growth
       </button>
       <header className="flex items-center justify-between px-1">
-        <h1 className="text-2xl font-bold tracking-tight">Body</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Body</h1>
+          <p className="text-xs text-muted-foreground">Measurements, movement, trends, and progress beyond the scale.</p>
+        </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" className="h-9 rounded-full" onClick={() => setProfileOpen(true)}>
             <Settings2 className="mr-1 size-4" /> Details
@@ -67,6 +81,8 @@ export function BodyScreen() {
           </Button>
         </div>
       </header>
+
+      <HealthNav active="body" />
 
       <div className="flex gap-2">
         <Chip active={tab === 'body'} emoji="🧬" label="Composition" onClick={() => setTab('body')} />
@@ -82,7 +98,7 @@ export function BodyScreen() {
           <CompositionTab
             comp={comp}
             goal={goal}
-            onGoal={setGoal}
+            onGoal={chooseGoal}
             onWeighIn={() => setWeighInOpen(true)}
             onProfile={() => setProfileOpen(true)}
             onPhotos={() => navigate('/growth/body/photos')}

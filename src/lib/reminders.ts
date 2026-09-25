@@ -13,7 +13,7 @@
 
 export interface RemindableItem {
   id: string
-  kind: 'habit' | 'routine' | 'journal'
+  kind: 'habit' | 'routine' | 'journal' | 'supplement'
   name: string
   emoji: string
   /** "HH:MM" or null when no reminder is set */
@@ -66,7 +66,9 @@ export function dueReminders(
           ? 'Two seconds to check in — keep the streak alive.'
           : item.kind === 'routine'
             ? 'Time to play your routine, one step at a time.'
-            : 'Two honest lines about today — that\u2019s all it takes.',
+            : item.kind === 'supplement'
+              ? 'Your scheduled supplement is due. Mark it when taken.'
+              : 'Two honest lines about today — that\u2019s all it takes.',
     })
   }
   return out

@@ -161,10 +161,9 @@ export interface BulkPace {
 
 /**
  * Weight trend as pace (kg/week) from the first → last weigh-in of a series.
- * Verdict vs the user's lean-bulk target: on-track inside ±50% of target,
- * slow below, fast above (documented interpretation — a 250 g/week target
- * gives a 125–375 g/week band, which brackets the coach's 0.15–0.30 kg
- * guidance). Needs ≥ 2 points AND ≥ 7 days of span for any verdict.
+ * Verdict vs the user's signed weight-change target: on-track inside ±50%
+ * of target. Positive targets mean gain, negative targets mean loss, and zero
+ * means maintain within ±125 g/week. Needs ≥ 2 points and ≥ 7 days of span.
  */
 export function bulkPace(points: readonly WeightPoint[], weeklyTargetG: number): BulkPace {
   if (points.length < 2) return { kgPerWeek: null, verdict: 'insufficient', spanDays: 0 }
@@ -175,8 +174,15 @@ export function bulkPace(points: readonly WeightPoint[], weeklyTargetG: number):
   if (spanDays < 7) return { kgPerWeek: null, verdict: 'insufficient', spanDays }
   const kgPerWeek = round2(((last.g - first.g) / 1000 / spanDays) * 7)
   const weeklyG = kgPerWeek * 1000
-  const target = weeklyTargetG > 0 ? weeklyTargetG : 250
-  const verdict: PaceVerdict = weeklyG < target / 2 ? 'slow' : weeklyG > target * 1.5 ? 'fast' : 'on_track'
+  let verdict: PaceVerdict
+  if (weeklyTargetG === 0) {
+    verdict = Math.abs(weeklyG) <= 125 ? 'on_track' : 'fast'
+  } else if (weeklyTargetG > 0) {
+    verdict = weeklyG < weeklyTargetG / 2 ? 'slow' : weeklyG > weeklyTargetG * 1.5 ? 'fast' : 'on_track'
+  } else {
+    // Example: a -400 g/week target is on-track from -200 to -600.
+    verdict = weeklyG > weeklyTargetG / 2 ? 'slow' : weeklyG < weeklyTargetG * 1.5 ? 'fast' : 'on_track'
+  }
   return { kgPerWeek, verdict, spanDays }
 }
 
