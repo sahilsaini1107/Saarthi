@@ -3,7 +3,7 @@
 // In-app reader (Phase 16). EPUBs render through epub.js (loaded lazily,
 // client-only) with text-selection highlights, notes, bookmarks, resume
 // position and auto progress. PDFs render in the browser's own viewer via a
-// sandbox-safe object URL, with page notes + bookmarks around them.
+// sandbox-safe object URL, with page highlights, notes and bookmarks around them.
 // Simpler interpretation (documented in PROGRESS.md): no DRM removal, PDF
 // page position is user-set (iframes don't expose scroll), mobile browsers
 // may hand PDFs to their native viewer.
@@ -112,9 +112,12 @@ function AnnotationsDrawer({
           {highlights.length === 0 && <p className="text-xs text-muted-foreground">None yet.</p>}
           {highlights.map((h) => (
             <div key={h.id} className="rounded-xl border bg-card p-2.5">
-              <button type="button" className="flex w-full items-start gap-2 text-left" onClick={() => h.cfi && onGo({ cfi: h.cfi })}>
+              <button type="button" className="flex w-full items-start gap-2 text-left" onClick={() => onGo({ cfi: h.cfi, page: h.page })}>
                 <span aria-hidden className={cn('mt-1 size-3 shrink-0 rounded-full', HIGHLIGHT_COLOR_CLASSES[h.color as HighlightColor] ?? HIGHLIGHT_COLOR_CLASSES.yellow)} />
-                <span className="line-clamp-3 text-xs leading-relaxed">{h.text}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="line-clamp-3 text-xs leading-relaxed">{h.text}</span>
+                  {h.page != null && <span className="mt-1 block text-[10px] text-muted-foreground">p. {h.page}</span>}
+                </span>
               </button>
               {h.note && <p className="pl-5 text-[10px] text-muted-foreground">↳ {h.note}</p>}
               <div className="flex justify-end">
@@ -428,9 +431,14 @@ function PdfReader({ bookId, tz, onBack }: { bookId: string; tz: string; onBack:
   const book = useBook(bookId)
   const saveProgress = useUpdateBookProgress()
   const addBookmark = useAddBookmark({ success: 'Page bookmarked' })
+  const addHighlight = useAddHighlight({ success: 'Highlight saved' })
+  const delHighlight = useDeleteHighlight({ success: 'Highlight removed' })
   const addNote = useAddNote({ success: 'Note saved' })
   const [url, setUrl] = useState<string | null>(null)
   const [page, setPage] = useState('')
+  const [highlightText, setHighlightText] = useState('')
+  const [highlightNote, setHighlightNote] = useState('')
+  const [highlightColor, setHighlightColor] = useState<HighlightColor>('yellow')
   const [noteText, setNoteText] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [sessionOpen, setSessionOpen] = useState(false)
@@ -463,6 +471,8 @@ function PdfReader({ bookId, tz, onBack }: { bookId: string; tz: string; onBack:
     saveProgress.mutate({ id: bookId, currentPage: clamped })
     setPage(String(clamped))
   }
+
+  const activePage = Number(page) || b.currentPage || 1
 
   return (
     <div className="flex flex-col gap-3">
@@ -509,7 +519,7 @@ function PdfReader({ bookId, tz, onBack }: { bookId: string; tz: string; onBack:
             <ErrorCard message={error} onRetry={onBack} />
           </div>
         ) : url ? (
-          <iframe key={page || 'start'} title={b.title} src={`${url}${page ? `#page=${page}` : ''}`} className="h-full w-full" />
+          <iframe key={page || b.currentPage || 'start'} title={b.title} src={`${url}#page=${activePage}`} className="h-full w-full" />
         ) : (
           <div className="flex h-full items-center justify-center">
             <p className="text-sm text-muted-foreground">Loading PDF…</p>
@@ -517,15 +527,57 @@ function PdfReader({ bookId, tz, onBack }: { bookId: string; tz: string; onBack:
         )}
       </div>
 
-      <div className="flex items-center gap-2 px-1">
-        <Input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={`Note on p. ${page || b.currentPage || 1}…`} className="h-10 rounded-xl" />
+      <section className="rounded-2xl border bg-card p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">Highlight on p. {activePage}</p>
+          <div className="flex gap-1.5">
+            {HIGHLIGHT_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-label={`Use ${c} highlighter`}
+                onClick={() => setHighlightColor(c)}
+                className={cn('size-6 rounded-full border border-black/10', HIGHLIGHT_COLOR_CLASSES[c], highlightColor === c && 'ring-2 ring-primary ring-offset-2')}
+              />
+            ))}
+          </div>
+        </div>
+        <Textarea
+          value={highlightText}
+          onChange={(e) => setHighlightText(e.target.value)}
+          placeholder="Paste or type the passage you want to keep..."
+          className="mt-2 min-h-20 rounded-xl"
+        />
+        <Input value={highlightNote} onChange={(e) => setHighlightNote(e.target.value)} placeholder="Optional note for this highlight..." className="mt-2 h-10 rounded-xl" />
+        <Button
+          size="sm"
+          className="mt-2 h-9 rounded-xl"
+          disabled={!highlightText.trim() || addHighlight.isPending}
+          onClick={() =>
+            addHighlight.mutate(
+              { bookId, page: activePage, text: highlightText.trim(), note: highlightNote.trim() || null, color: highlightColor },
+              {
+                onSuccess: () => {
+                  setHighlightText('')
+                  setHighlightNote('')
+                },
+              },
+            )
+          }
+        >
+          Save highlight
+        </Button>
+      </section>
+
+      <section className="flex items-center gap-2 px-1">
+        <Input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={`Write a note on p. ${activePage}...`} className="h-10 rounded-xl" />
         <Button
           size="sm"
           className="h-10 shrink-0 rounded-xl"
-          disabled={!noteText.trim() || !(Number(page) || b.currentPage)}
+          disabled={!noteText.trim()}
           onClick={() =>
             addNote.mutate(
-              { bookId, page: Number(page) || b.currentPage || 1, text: noteText.trim() },
+              { bookId, page: activePage, text: noteText.trim() },
               { onSuccess: () => setNoteText('') },
             )
           }
@@ -535,7 +587,7 @@ function PdfReader({ bookId, tz, onBack }: { bookId: string; tz: string; onBack:
         <Button size="sm" variant="secondary" className="h-10 shrink-0 rounded-xl" onClick={() => setSessionOpen(true)}>
           + Session
         </Button>
-      </div>
+      </section>
 
       <AnnotationsDrawer
         open={drawerOpen}
@@ -548,7 +600,7 @@ function PdfReader({ bookId, tz, onBack }: { bookId: string; tz: string; onBack:
           if (t.page) commitPage(t.page)
           setDrawerOpen(false)
         }}
-        onDeleteHighlight={() => undefined}
+        onDeleteHighlight={(hid) => delHighlight.mutate({ bookId, hid })}
       />
 
       <SessionLogSheet open={sessionOpen} onOpenChange={setSessionOpen} book={b} tz={tz} />

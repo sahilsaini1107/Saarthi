@@ -60,6 +60,7 @@ function BookForm({ book, onClose }: { book: BookDTO | null; onClose: () => void
   const valid = title.trim().length > 0
   const pageBased = isPageBased(format)
   const hasFile = book?.hasFile ?? false
+  const canAttachFile = format === 'epub' || format === 'pdf'
 
   function pickFile(f: File | null) {
     if (!f) return
@@ -69,6 +70,11 @@ function BookForm({ book, onClose }: { book: BookDTO | null; onClose: () => void
       return
     }
     setFile(f)
+  }
+
+  function chooseFormat(next: BookFormat) {
+    setFormat(next)
+    setFile(null)
   }
 
   function fileToBase64(f: File): Promise<string> {
@@ -143,7 +149,7 @@ function BookForm({ book, onClose }: { book: BookDTO | null; onClose: () => void
               key={f}
               type="button"
               disabled={!!book && hasFile}
-              onClick={() => setFormat(f)}
+              onClick={() => chooseFormat(f)}
               className={cn(
                 'flex h-11 flex-col items-center justify-center rounded-xl border text-xs font-semibold transition-all active:scale-95 disabled:opacity-50',
                 format === f ? 'border-transparent bg-primary text-primary-foreground' : 'bg-card text-muted-foreground',
@@ -167,7 +173,7 @@ function BookForm({ book, onClose }: { book: BookDTO | null; onClose: () => void
         </Field>
       )}
 
-      {!pageBased && !book && (
+      {canAttachFile && !hasFile && (
         <Field label="Book file" hint={file ? file.name : `Attach a .${format} file (≤15 MB)`}>
           <input
             ref={fileRef}
