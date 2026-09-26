@@ -20,8 +20,7 @@ import { countToMilli, formatMilliAmount } from '@/lib/goals-grid'
 import { parseAmountToPaise } from '@/lib/money'
 import { MOOD_META, isMood } from '@/lib/journal'
 import { BUDGET_BAND_META } from '@/lib/constants'
-import { ArrowRight, ArrowRightCircle, BookOpen, CalendarClock, CheckCircle2, Circle, Compass, Flame, Landmark, PiggyBank, Plane, Play, ShieldCheck, Sparkles, Sprout, Target } from 'lucide-react'
-import { useGamification } from '@/hooks/queries'
+import { ArrowRight, ArrowRightCircle, BookOpen, CalendarClock, CheckCircle2, ChevronDown, Circle, Compass, Flame, Landmark, PiggyBank, Plane, Play, ShieldCheck, Sparkles, Sprout, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TodaySnapshot } from '@/services/overview'
 import type { Insight } from '@/lib/insights'
@@ -45,8 +44,8 @@ export function TodayScreen() {
   const principleCheck = useSetPrincipleCheck()
   const life = useLifeScore()
   const insights = useInsights()
-  const gamification = useGamification()
   const tzToday = todayISO(user.timezone)
+  const [showOverview, setShowOverview] = useState(false)
 
   if (today.isLoading) return <SkeletonRow />
   if (today.isError) return <ErrorCard message={(today.error as Error).message} onRetry={() => today.refetch()} />
@@ -55,31 +54,49 @@ export function TodayScreen() {
   const d = today.data
   const spendDelta =
     d.prevMonthSpendPaise > 0 ? Math.round(((d.monthSpendPaise - d.prevMonthSpendPaise) / d.prevMonthSpendPaise) * 100) : null
+  const habitsDone = d.habitsToday.filter((habit) => habit.doneToday).length
+  const routinesDone = d.routinesToday.filter((routine) => routine.doneToday).length
+  const dueCount = d.billsDue.length + d.goalTasksToday.length + d.revisionsToday.length
+  const pendingCount =
+    d.habitsToday.length - habitsDone +
+    (d.routinesToday.length - routinesDone) +
+    dueCount
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       <header className="flex items-start justify-between px-1">
         <div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm font-medium text-muted-foreground">{formatDayLabel(d.today)}</p>
+          <h1 className="text-2xl font-bold tracking-tight">
             {greeting(user.timezone)}, {user.name.split(' ')[0]}
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight">{formatDayLabel(d.today)}</h1>
-          {gamification.data && (
-            <button
-              type="button"
-              onClick={() => navigate('/settings')}
-              className="mt-1 flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/15"
-            >
-              <span aria-hidden>{gamification.data.level.emoji}</span>
-              Level {gamification.data.level.level} · {gamification.data.level.title}
-              <span className="font-normal text-primary/70">· {gamification.data.earnedCount}/{gamification.data.totalCount} badges</span>
-            </button>
-          )}
+          </h1>
         </div>
-        <Button size="sm" variant="outline" className="h-9 rounded-full" onClick={() => openQuickAdd()}>
+        <Button size="sm" className="h-9 rounded-full px-4 shadow-sm" onClick={() => openQuickAdd()}>
           + Add
         </Button>
       </header>
+
+      {!d.hasNoData && (
+        <section className="overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 via-primary/5 to-card p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold tracking-[0.14em] text-primary uppercase">Today at a glance</p>
+              <h2 className="mt-1 text-xl font-bold tracking-tight">
+                {pendingCount === 0 ? 'Everything important is handled.' : `${pendingCount} ${pendingCount === 1 ? 'item needs' : 'items need'} your attention.`}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">Focus on the next useful action. The rest can wait.</p>
+            </div>
+            <span className={cn('flex size-11 shrink-0 items-center justify-center rounded-2xl text-lg', pendingCount === 0 ? 'bg-income/15' : 'bg-primary/15')} aria-hidden>
+              {pendingCount === 0 ? '✓' : '🧭'}
+            </span>
+          </div>
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            <TodaySummaryStat label="Habits" value={`${habitsDone}/${d.habitsToday.length}`} />
+            <TodaySummaryStat label="Routines" value={`${routinesDone}/${d.routinesToday.length}`} />
+            <TodaySummaryStat label="Due" value={String(dueCount)} warn={dueCount > 0} />
+          </div>
+        </section>
+      )}
 
       {d.hasNoData && (
         <EmptyState
@@ -109,8 +126,10 @@ export function TodayScreen() {
       )}
 
       {/* training (Phase 13) */}
-      <CheckInTodayCard />
-      <TrainingTodayCard />
+      <div className="grid gap-4 md:grid-cols-2">
+        <CheckInTodayCard />
+        <TrainingTodayCard />
+      </div>
 
       {/* habits today (Phase 2) */}
       {d.habitsToday.length > 0 && (
@@ -277,6 +296,36 @@ export function TodayScreen() {
           </div>
         </section>
       )}
+
+      {!d.hasNoData && (
+        <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShowOverview((value) => !value)}
+            aria-expanded={showOverview}
+            className="flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-accent"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Your full overview</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Money, wellbeing, learning and recent activity</p>
+            </div>
+            <div className="hidden items-center gap-4 text-right sm:flex">
+              <div>
+                <p className="text-xs text-muted-foreground">Net worth</p>
+                <p className="text-sm font-bold tabular-nums">{formatINRCompact(d.netWorthPaise)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Life score</p>
+                <p className={cn('text-sm font-bold tabular-nums', scoreTone(life.data?.overall ?? null))}>{life.data?.overall ?? '—'}</p>
+              </div>
+            </div>
+            <ChevronDown className={cn('size-4 shrink-0 text-muted-foreground transition-transform', showOverview && 'rotate-180')} />
+          </button>
+        </section>
+      )}
+
+      {showOverview && (
+        <div className="flex flex-col gap-5 border-t pt-5">
 
       {/* life score (Phase 5.3) */}
       {!d.hasNoData && <LifeScoreCard score={life.data?.overall ?? null} pillars={{ wealth: life.data?.wealth.score ?? null, growth: life.data?.growth.score ?? null, reflection: life.data?.reflection.score ?? null }} onOpen={() => navigate('/journal')} />}
@@ -841,6 +890,17 @@ export function TodayScreen() {
           </div>
         </button>
       </section>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TodaySummaryStat({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <div className="rounded-2xl border border-background/70 bg-background/70 px-3 py-2.5 backdrop-blur">
+      <p className={cn('text-base font-bold tabular-nums', warn && 'text-warn')}>{value}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
   )
 }
