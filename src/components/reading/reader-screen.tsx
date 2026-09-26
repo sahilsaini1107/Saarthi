@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { EmptyState, ErrorCard, SkeletonRow } from '@/components/ui/saarthi'
 import { SessionLogSheet } from '@/components/reading/session-log-sheet'
 import { apiRaw } from '@/lib/client'
-import { HIGHLIGHT_COLORS, HIGHLIGHT_COLOR_CLASSES, isPageBased, type HighlightColor } from '@/lib/reading'
+import { HIGHLIGHT_COLORS, HIGHLIGHT_COLOR_CLASSES, type HighlightColor } from '@/lib/reading'
 import type { BookDetailDTO } from '@/lib/types'
 import {
   useAddBookmark,
@@ -67,8 +67,8 @@ export function ReaderScreen({ bookId }: { bookId: string }) {
   if (book.isError) return <ErrorCard message={(book.error as Error).message} onRetry={() => book.refetch()} />
   const b = book.data
   if (!b) return null
-  if (!b.hasFile || isPageBased(b.format)) {
-    // physical books have nothing to render — detail screen owns them
+  if (!b.hasFile || b.format === 'physical') {
+    // Physical books and file-less entries have nothing to render here.
     navigate(`/growth/library/${bookId}`)
     return null
   }
@@ -519,7 +519,17 @@ function PdfReader({ bookId, tz, onBack }: { bookId: string; tz: string; onBack:
             <ErrorCard message={error} onRetry={onBack} />
           </div>
         ) : url ? (
-          <iframe key={page || b.currentPage || 'start'} title={b.title} src={`${url}#page=${activePage}`} className="h-full w-full" />
+          <object key={page || b.currentPage || 'start'} title={b.title} data={`${url}#page=${activePage}`} type="application/pdf" className="h-full w-full">
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+              <p className="text-sm font-semibold">This browser cannot embed PDFs here.</p>
+              <p className="max-w-[32ch] text-xs text-muted-foreground">
+                The file is loaded, but the built-in PDF plugin is unavailable. Open it from the top-right button and keep notes here by page.
+              </p>
+              <Button asChild size="sm" className="rounded-full">
+                <a href={url} target="_blank" rel="noreferrer">Open PDF</a>
+              </Button>
+            </div>
+          </object>
         ) : (
           <div className="flex h-full items-center justify-center">
             <p className="text-sm text-muted-foreground">Loading PDF…</p>
