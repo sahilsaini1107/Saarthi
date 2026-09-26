@@ -47,6 +47,7 @@ import { BookDetailScreen } from '@/components/reading/book-detail-screen'
 import { ReaderScreen } from '@/components/reading/reader-screen'
 import { QuotesScreen } from '@/components/reading/quotes-screen'
 import { FitnessScreen } from '@/components/screens/fitness-screen'
+import { FitnessPlanScreen } from '@/components/fitness/plan-overview-screen'
 import { SessionScreen } from '@/components/fitness/session-view'
 import { FoodScreen } from '@/components/screens/food-screen'
 import { HealthCoachScreen } from '@/components/screens/health-coach-screen'
@@ -152,6 +153,9 @@ function renderScreen(path: string, navigate: (to: string) => void, user: UserDT
   if (path === '/growth/health') return <HealthCoachScreen />
   if (path === '/growth/checkin') return <CheckInScreen />
   if (path === '/growth/fitness/food') return <FoodScreen />
+  if (path === '/growth/fitness/plan') return <FitnessPlanScreen />
+  if (path.startsWith('/growth/fitness/plan/'))
+    return <FitnessPlanScreen planId={path.split('/')[4]} />
   if (path.startsWith('/growth/fitness/session/'))
     return <SessionScreen sessionId={path.split('/')[4]} />
   if (path === '/growth/body/photos') return <PhotosScreen />

@@ -3,7 +3,7 @@
 // Training plans, sessions, and exercise progression.
 
 import { useState } from 'react'
-import { ArrowLeft, ArrowRight, Play, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CalendarDays, Play, Plus, Trash2 } from 'lucide-react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useUi } from '@/components/saarthi-app'
 import { PlanEditorSheet } from '@/components/fitness/plan-editor-sheet'
@@ -127,9 +127,14 @@ function TrainTab({ summary }: { summary: FitnessSummaryDTO | undefined }) {
               <p className="mt-0.5 text-lg font-bold tracking-tight">{next.label}</p>
               {next.focus && <p className="text-xs text-muted-foreground">{next.focus}</p>}
             </div>
-            <Button size="sm" className="h-9 shrink-0 rounded-full" disabled={starting || createSession.isPending} onClick={startToday}>
-              <Play className="mr-1 size-4" /> Start
-            </Button>
+            <div className="flex shrink-0 gap-2">
+              <Button size="icon" variant="outline" className="size-9 rounded-full" onClick={() => navigate(`/growth/fitness/plan/${next.planId}`)} aria-label="View full plan">
+                <CalendarDays className="size-4" />
+              </Button>
+              <Button size="sm" className="h-9 rounded-full" disabled={starting || createSession.isPending} onClick={startToday}>
+                <Play className="mr-1 size-4" /> Start
+              </Button>
+            </div>
           </div>
           <div className="mt-3 flex flex-col gap-1.5">
             {next.exercises.map((pe) => (
@@ -147,7 +152,7 @@ function TrainTab({ summary }: { summary: FitnessSummaryDTO | undefined }) {
           <EmptyState
             emoji="🏋️"
             title="No active plan"
-            body="One tap sets up the coach's Foundation A/B — three full-body days a week, alternating A and B."
+            body="One tap sets up the vegetarian transformation plan: strength, conditioning, recovery, and daily anchors for the next 6 months."
             action={
               <Button size="sm" className="mt-2 rounded-full" onClick={() => { setEditPlan(null); setEditorOpen(true) }}>
                 <Plus className="mr-1 size-4" /> Start a plan
@@ -178,6 +183,14 @@ function TrainTab({ summary }: { summary: FitnessSummaryDTO | undefined }) {
                   </p>
                   <p className="text-xs text-muted-foreground">{p.days.map((d) => d.label).join(' · ')} — {p.sessionCount} sessions</p>
                 </button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full"
+                  onClick={() => navigate(`/growth/fitness/plan/${p.id}`)}
+                >
+                  <CalendarDays className="mr-1 size-3.5" /> View
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"

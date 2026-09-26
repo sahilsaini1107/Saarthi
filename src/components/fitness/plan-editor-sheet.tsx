@@ -59,11 +59,12 @@ export function PlanEditorSheet({
 
 function CreateForm({ onClose }: { onClose: () => void }) {
   const create = useCreatePlan({ success: 'Plan created and activated' })
+  const defaultPreset = PLAN_PRESETS[0] ?? FOUNDATION_AB
   const [tab, setTab] = useState<CreateTab>('preset')
-  const [presetId, setPresetId] = useState(FOUNDATION_AB.id)
-  const preset: PlanPreset = PLAN_PRESETS.find((p) => p.id === presetId) ?? FOUNDATION_AB
-  const [name, setName] = useState(FOUNDATION_AB.name)
-  const [days, setDays] = useState(() => FOUNDATION_AB.days.map((d) => ({ label: d.label, focus: d.focus })))
+  const [presetId, setPresetId] = useState(defaultPreset.id)
+  const preset: PlanPreset = PLAN_PRESETS.find((p) => p.id === presetId) ?? defaultPreset
+  const [name, setName] = useState(defaultPreset.name)
+  const [days, setDays] = useState(() => defaultPreset.days.map((d) => ({ label: d.label, focus: d.focus })))
 
   // generator state
   const [goal, setGoal] = useState<GeneratorGoal>('muscle')
