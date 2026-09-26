@@ -223,7 +223,15 @@ function QuickAddForm({ editTxn, onClose, initialTripId, preset }: { editTxn?: T
           {orderedCategories.map((c) => (
             <Chip key={c.id} emoji={c.emoji} label={c.name} active={categoryId === c.id} onClick={() => setCategoryId(c.id)} />
           ))}
-          {orderedCategories.length === 0 && <span className="px-1 py-2 text-sm text-muted-foreground">No categories yet</span>}
+          {orderedCategories.length === 0 && (
+            <span className="px-1 py-2 text-sm text-muted-foreground">
+              {categories.isPending
+                ? 'Loading categories…'
+                : categories.isError
+                  ? 'Categories could not be loaded'
+                  : `No ${directionValue === 'out' ? 'expense' : 'income'} categories yet`}
+            </span>
+          )}
         </div>
       </div>
 
@@ -234,7 +242,15 @@ function QuickAddForm({ editTxn, onClose, initialTripId, preset }: { editTxn?: T
           {(accounts.data ?? []).map((a) => (
             <Chip key={a.id} label={a.name} color={a.color} active={accountId === a.id} onClick={() => setPickedAccountId(a.id)} />
           ))}
-          {(accounts.data ?? []).length === 0 && <span className="px-1 py-2 text-sm text-muted-foreground">Add an account first</span>}
+          {(accounts.data ?? []).length === 0 && (
+            <span className="px-1 py-2 text-sm text-muted-foreground">
+              {accounts.isPending
+                ? 'Loading accounts…'
+                : accounts.isError
+                  ? 'Accounts could not be loaded'
+                  : 'Add an account first'}
+            </span>
+          )}
         </div>
       </div>
 

@@ -9,7 +9,7 @@
 // stepper to browse history.
 
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Flame, Plus, Search } from 'lucide-react'
+import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Flame, Plus, Search } from 'lucide-react'
 import { useUi } from '@/components/saarthi-app'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -121,7 +121,7 @@ function KeyLearningsDigest({ monthKey, setMonthKey, tz }: { monthKey: string; s
             <div key={g.goalId} className="flex flex-col gap-1.5">
               <button
                 type="button"
-                onClick={() => navigate('/goals')}
+                onClick={() => navigate('/growth/goals')}
                 className="flex items-center gap-1.5 self-start text-xs font-semibold hover:text-foreground"
                 title="Open your goals"
               >
@@ -137,7 +137,7 @@ function KeyLearningsDigest({ monthKey, setMonthKey, tz }: { monthKey: string; s
                 <button
                   key={it.id}
                   type="button"
-                  onClick={() => navigate('/goals')}
+                  onClick={() => navigate('/growth/goals')}
                   className="rounded-xl bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-accent"
                 >
                   <p className="text-[11px] font-bold tabular-nums text-muted-foreground">
@@ -163,12 +163,17 @@ function LifeScoreBreakdown({ data }: { data: LifeScorePayload }) {
     { key: 'growth', label: 'Growth', emoji: '🌱', score: data.growth.score, components: data.growth.components },
     { key: 'reflection', label: 'Reflection', emoji: '🪞', score: data.reflection.score, components: data.reflection.components },
   ]
+  const allComponents = pillars.flatMap((pillar) => pillar.components)
+  const measured = allComponents.filter((component) => component.score !== null).length
+  const coverage = allComponents.length ? Math.round((measured / allComponents.length) * 100) : 0
   return (
     <section className="rounded-2xl border bg-card p-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">Life Score</p>
-          <p className="text-xs text-muted-foreground">Mean of your measurable pillars — missing data is skipped, not punished.</p>
+          <p className="text-xs text-muted-foreground">
+            {coverage < 50 ? 'Early estimate' : 'Measured from your recent activity'} · {measured}/{allComponents.length} signals available
+          </p>
         </div>
         <p
           className={cn(
@@ -225,6 +230,7 @@ export function JournalScreen() {
   const [tag, setTag] = useState<string>('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<JournalEntryDTO | null>(null)
+  const [showInsights, setShowInsights] = useState(false)
   const life = useLifeScore()
   // Phase 12 — digest month under review (defaults to the user's current month)
   const [learnMonth, setLearnMonth] = useState(() => currentMonthKeyIn(user.timezone))
@@ -271,11 +277,31 @@ export function JournalScreen() {
         </Button>
       </header>
 
-      {/* life score breakdown (Phase 5.3) — the Reflection pillar home */}
-      {life.data && <LifeScoreBreakdown data={life.data} />}
-
-      {/* key-learnings digest (Phase 12) — milestone takeaways, month by month */}
-      <KeyLearningsDigest monthKey={learnMonth} setMonthKey={setLearnMonth} tz={user.timezone} />
+      <section className="overflow-hidden rounded-2xl border bg-card">
+        <button
+          type="button"
+          onClick={() => setShowInsights((value) => !value)}
+          aria-expanded={showInsights}
+          className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-accent"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <BarChart3 className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">Reflection insights</span>
+            <span className="block text-xs text-muted-foreground">
+              Life Score {life.data?.overall ?? '—'} · monthly lessons and trends
+            </span>
+          </span>
+          <ChevronDown className={cn('size-4 text-muted-foreground transition-transform', showInsights && 'rotate-180')} />
+        </button>
+        {showInsights && (
+          <div className="flex flex-col gap-3 border-t p-3">
+            {life.data && <LifeScoreBreakdown data={life.data} />}
+            <KeyLearningsDigest monthKey={learnMonth} setMonthKey={setLearnMonth} tz={user.timezone} />
+          </div>
+        )}
+      </section>
 
       {/* search + filters */}
       <div className="flex flex-col gap-2.5">

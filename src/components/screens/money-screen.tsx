@@ -268,7 +268,7 @@ export function MoneyScreen() {
           <Compass className="size-5" />
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-semibold">Planner \u00b7 every rupee has a job</p>
+          <p className="text-sm font-semibold">Planner · every rupee has a job</p>
           <p className="truncate text-xs opacity-90">
             {planner.data
               ? planner.data.health === 'drift'

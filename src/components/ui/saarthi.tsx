@@ -15,7 +15,9 @@ import { Input } from '@/components/ui/input'
 export function SectionHeader({ title, action }: { title: string; action?: ReactNode }) {
   return (
     <div className="flex items-center justify-between px-1 pt-2 pb-2">
-      <h2 className="text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">{title}</h2>
+      <h2 className="text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {title}
+      </h2>
       {action}
     </div>
   )
@@ -46,11 +48,13 @@ export function Chip({
         active
           ? 'border-transparent bg-primary text-primary-foreground shadow-sm'
           : 'bg-card text-foreground hover:bg-accent',
-        className,
+        className
       )}
     >
       {emoji && <span aria-hidden>{emoji}</span>}
-      {color && !emoji && <span className="size-2 rounded-full" style={{ background: color }} aria-hidden />}
+      {color && !emoji && (
+        <span className="size-2 rounded-full" style={{ background: color }} aria-hidden />
+      )}
       <span className="whitespace-nowrap">{label}</span>
     </button>
   )
@@ -66,10 +70,19 @@ export function ProgressBar({
   tone?: 'primary' | 'income' | 'expense' | 'warn'
   className?: string
 }) {
-  const bg = { primary: 'bg-primary', income: 'bg-income', expense: 'bg-expense', warn: 'bg-warn' }[tone]
+  const bg = { primary: 'bg-primary', income: 'bg-income', expense: 'bg-expense', warn: 'bg-warn' }[
+    tone
+  ]
   return (
-    <div className={cn('h-2 w-full overflow-hidden rounded-full bg-muted', className)} role="progressbar" aria-valuenow={Math.round(value)}>
-      <div className={cn('h-full rounded-full transition-all', bg)} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+    <div
+      className={cn('h-2 w-full overflow-hidden rounded-full bg-muted', className)}
+      role="progressbar"
+      aria-valuenow={Math.round(value)}
+    >
+      <div
+        className={cn('h-full rounded-full transition-all', bg)}
+        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+      />
     </div>
   )
 }
@@ -88,7 +101,13 @@ export function Money({
 }) {
   const text = compact ? formatINRCompact(paise) : formatINR(paise)
   const tone =
-    signed === 'in' ? 'text-income' : signed === 'out' ? 'text-expense' : paise < 0 ? 'text-expense' : undefined
+    signed === 'in'
+      ? 'text-income'
+      : signed === 'out'
+        ? 'text-expense'
+        : paise < 0
+          ? 'text-expense'
+          : undefined
   return (
     <span className={cn('tabular-nums', tone, className)}>
       {signed ? (signed === 'in' ? '+' : '−') + text.replace('-', '') : text}
@@ -111,7 +130,12 @@ export function EmptyState({
   compact?: boolean
 }) {
   return (
-    <div className={cn('flex flex-col items-center justify-center rounded-2xl border border-dashed text-center', compact ? 'gap-1.5 p-6' : 'gap-2 p-10')}>
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center rounded-2xl border border-dashed text-center',
+        compact ? 'gap-1.5 p-6' : 'gap-2 p-10'
+      )}
+    >
       <span className={compact ? 'text-3xl' : 'text-5xl'} aria-hidden>
         {emoji}
       </span>
@@ -144,7 +168,7 @@ export function StatTile({
           'text-lg font-bold tracking-tight tabular-nums',
           tone === 'income' && 'text-income',
           tone === 'expense' && 'text-expense',
-          tone === 'warn' && 'text-warn',
+          tone === 'warn' && 'text-warn'
         )}
       >
         {value}
@@ -161,7 +185,7 @@ export function Fab({ onClick, label = 'Quick add' }: { onClick: () => void; lab
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-[max(1rem,calc(50%-14rem))] z-40 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 transition-transform active:scale-90"
+      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-[max(1rem,calc(50%-14rem))] z-40 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 transition-transform active:scale-90 lg:right-[max(1.5rem,calc(50%-35.375rem))] lg:bottom-6"
     >
       <Plus className="size-7" strokeWidth={2.5} />
     </button>
@@ -198,7 +222,15 @@ export function DatePicker({
 }
 
 /* ---------- Field wrapper ---------- */
-export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+export function Field({
+  label,
+  children,
+  hint,
+}: {
+  label: string
+  children: ReactNode
+  hint?: string
+}) {
   return (
     <label className="flex w-full flex-col gap-1.5">
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
@@ -261,7 +293,7 @@ export function AppFooter({ className }: { className?: string }) {
     <footer
       className={cn(
         'mt-10 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t pt-5 text-[11px] text-muted-foreground',
-        className,
+        className
       )}
     >
       <span>

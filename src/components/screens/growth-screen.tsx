@@ -4,16 +4,53 @@
 // Study, Body, Skin. Deep screens live at #/growth/<module>.
 
 import { useState } from 'react'
-import { BookOpen, ChevronRight, Dumbbell, Flame, Pencil, Play, Plus, Repeat2, ScrollText, Target } from 'lucide-react'
+import {
+  ArrowLeft,
+  BookOpen,
+  ChevronRight,
+  Dumbbell,
+  Flame,
+  Pencil,
+  Play,
+  Plus,
+  Repeat2,
+  ScrollText,
+  Target,
+} from 'lucide-react'
 import { useUi } from '@/components/saarthi-app'
 import { Button } from '@/components/ui/button'
-import { EmptyState, ErrorCard, ProgressBar, SectionHeader, SkeletonRow } from '@/components/ui/saarthi'
+import {
+  EmptyState,
+  ErrorCard,
+  ProgressBar,
+  SectionHeader,
+  SkeletonRow,
+} from '@/components/ui/saarthi'
 import { StreakCalendar } from '@/components/ui/streak-calendar'
 import { HabitFormSheet } from '@/components/growth/habit-form-sheet'
 import { HabitGridPanel } from '@/components/growth/habit-grid-panel'
 import { RoutineFormSheet } from '@/components/growth/routine-form-sheet'
 import { RoutinePlay } from '@/components/growth/routine-play'
-import { useBodyMetrics, useBooks, useCheckIn, useCheckInHabit, useContent, useCourses, useFitnessSummary, useGoals, useHabits, useIdeas, usePeople, usePrinciples, useQuotes, useRoutines, useSkills, useSaveRoutine, useSkin, useWorkouts } from '@/hooks/queries'
+import {
+  useBodyMetrics,
+  useBooks,
+  useCheckIn,
+  useCheckInHabit,
+  useContent,
+  useCourses,
+  useFitnessSummary,
+  useGoals,
+  useHabits,
+  useIdeas,
+  usePeople,
+  usePrinciples,
+  useQuotes,
+  useRoutines,
+  useSkills,
+  useSaveRoutine,
+  useSkin,
+  useWorkouts,
+} from '@/hooks/queries'
 import { todayISO } from '@/lib/date'
 import { DINCHARYA } from '@/lib/dincharya'
 import { cn } from '@/lib/utils'
@@ -34,18 +71,19 @@ function HubTile({ card, onClick }: { card: HubCard; onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col gap-2 rounded-2xl border bg-card p-4 text-left transition-colors hover:bg-accent"
+      className="group relative flex min-h-20 items-center gap-3 rounded-2xl border bg-card p-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:bg-accent hover:shadow-sm sm:min-h-28 sm:flex-col sm:items-stretch sm:gap-2 sm:p-4"
     >
-      <div className="flex items-center justify-between">
-        <span className="text-xl" aria-hidden>
-          {card.emoji}
-        </span>
-        <ChevronRight className="size-4 text-muted-foreground" />
-      </div>
-      <div>
+      <span
+        className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-xl sm:size-auto sm:justify-start sm:bg-transparent"
+        aria-hidden
+      >
+        {card.emoji}
+      </span>
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">{card.title}</p>
-        <p className="line-clamp-2 text-xs text-muted-foreground">{card.sub}</p>
+        <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{card.sub}</p>
       </div>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:absolute sm:top-4 sm:right-4" />
     </button>
   )
 }
@@ -74,14 +112,22 @@ export function GrowthHub() {
   const loading = habits.isLoading || routines.isLoading || goals.isLoading || courses.isLoading
   const err = [habits, routines, goals, courses].find((q) => q.isError)
   if (err) return <ErrorCard message={(err.error as Error).message} onRetry={() => err.refetch()} />
-  if (loading) return <SkeletonRow />
+  if (loading)
+    return (
+      <div className="flex min-h-[60vh] flex-col gap-5">
+        <h1 className="px-1 text-2xl font-bold tracking-tight">Growth</h1>
+        <SkeletonRow />
+      </div>
+    )
 
   const habitList = habits.data ?? []
   const scheduled = habitList.filter((h) => h.scheduledToday)
   const habitsDone = scheduled.filter((h) => h.doneToday).length
   const routinesPlayed = (routines.data ?? []).filter((r) => r.todayRun).length
   const activeGoals = (goals.data ?? []).filter((g) => g.status === 'active')
-  const goalPct = activeGoals.length ? Math.round((activeGoals.reduce((s, g) => s + g.progress, 0) / activeGoals.length) * 100) : 0
+  const goalPct = activeGoals.length
+    ? Math.round((activeGoals.reduce((s, g) => s + g.progress, 0) / activeGoals.length) * 100)
+    : 0
   const activeCourses = (courses.data ?? []).filter((c) => c.status === 'active')
   const revisionsDue = (courses.data ?? []).reduce((s, c) => s + c.stats.revisionsDue, 0)
   const lastWorkout = workouts.data?.workouts[0]
@@ -110,7 +156,9 @@ export function GrowthHub() {
   const contentQueue = liveContent.filter((c) => c.status !== 'done').length
   const contentDone = liveContent.length - contentQueue
   const ideaList = ideas.data ?? []
-  const ideaPipeline = ideaList.filter((i) => i.status === 'spark' || i.status === 'exploring' || i.status === 'planned').length
+  const ideaPipeline = ideaList.filter(
+    (i) => i.status === 'spark' || i.status === 'exploring' || i.status === 'planned'
+  ).length
   const ideaLaunched = ideaList.filter((i) => i.status === 'launched').length
 
   // Habits and routines are one screen with two tabs, so they are one tile now
@@ -121,7 +169,9 @@ export function GrowthHub() {
     : routineCount
       ? `${routinesPlayed}/${routineCount} routines played`
       : 'Build a 66-day streak · chain steps, press play'
-  const goalSub = activeGoals.length ? `${activeGoals.length} active · avg ${goalPct}%` : 'Set goals, break them down'
+  const goalSub = activeGoals.length
+    ? `${activeGoals.length} active · avg ${goalPct}%`
+    : 'Set goals, break them down'
   const studySub = activeCourses.length
     ? `${activeCourses.length} course${activeCourses.length === 1 ? '' : 's'}${revisionsDue ? ` · ${revisionsDue} to revise` : ''}`
     : 'Paced courses + revisions'
@@ -180,7 +230,9 @@ export function GrowthHub() {
           path: '/growth/body',
           emoji: '\u{1F4AA}',
           title: 'Body',
-          sub: lastWorkout ? `Last: ${lastWorkout.type} ${lastWorkout.minutes}m` : 'Composition, weight, measurements',
+          sub: lastWorkout
+            ? `Last: ${lastWorkout.type} ${lastWorkout.minutes}m`
+            : 'Composition, weight, measurements',
         },
         {
           path: '/growth/body/photos',
@@ -236,13 +288,17 @@ export function GrowthHub() {
           path: '/growth/content',
           emoji: '\u{1F3AC}',
           title: 'Content',
-          sub: contentQueue ? `${contentQueue} queued \u00b7 ${contentDone} done` : 'Watch & read in-app',
+          sub: contentQueue
+            ? `${contentQueue} queued \u00b7 ${contentDone} done`
+            : 'Watch & read in-app',
         },
         {
           path: '/growth/ideas',
           emoji: '\u{1F4A1}',
           title: 'Ideas',
-          sub: ideaPipeline ? `${ideaPipeline} in pipeline \u00b7 ${ideaLaunched} launched` : 'Spark \u2192 launched',
+          sub: ideaPipeline
+            ? `${ideaPipeline} in pipeline \u00b7 ${ideaLaunched} launched`
+            : 'Spark \u2192 launched',
         },
         {
           path: '/growth/skills',
@@ -283,7 +339,7 @@ export function GrowthHub() {
         .map((section) => (
           <section key={section.id}>
             <SectionHeader title={section.label} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {section.cards.map((c) => (
                 <HubTile key={c.path} card={c} onClick={() => navigate(c.path)} />
               ))}
@@ -306,7 +362,7 @@ export function GrowthHub() {
           </span>
         </button>
         {showMore && (
-          <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {moreCards.map((c) => (
               <HubTile key={c.path} card={c} onClick={() => navigate(c.path)} />
             ))}
@@ -320,13 +376,21 @@ export function GrowthHub() {
 /* ================= Habits + Routines (deep screens) ================= */
 
 export function GrowthScreen({ initialTab = 'habits' }: { initialTab?: Tab }) {
-  const { user } = useUi()
+  const { user, navigate } = useUi()
   const today = todayISO(user.timezone)
   const [tab, setTab] = useState<Tab>(initialTab)
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="px-1 text-2xl font-bold tracking-tight">Growth</h1>
+      <button
+        type="button"
+        onClick={() => navigate('/growth')}
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" /> Growth
+      </button>
+
+      <h1 className="px-1 text-2xl font-bold tracking-tight">Habits & routines</h1>
 
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
         {(
@@ -341,7 +405,7 @@ export function GrowthScreen({ initialTab = 'habits' }: { initialTab?: Tab }) {
             onClick={() => setTab(key)}
             className={cn(
               'flex h-9 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-colors',
-              tab === key ? 'bg-card shadow-sm' : 'text-muted-foreground',
+              tab === key ? 'bg-card shadow-sm' : 'text-muted-foreground'
             )}
           >
             {key === 'habits' ? <Flame className="size-4" /> : <Repeat2 className="size-4" />}
@@ -366,7 +430,8 @@ function HabitsTab({ today }: { today: string }) {
   const [expanded, setExpanded] = useState<string | null>(null)
 
   if (habits.isLoading) return <SkeletonRow />
-  if (habits.isError) return <ErrorCard message={(habits.error as Error).message} onRetry={() => habits.refetch()} />
+  if (habits.isError)
+    return <ErrorCard message={(habits.error as Error).message} onRetry={() => habits.refetch()} />
 
   const list = habits.data ?? []
   const scheduledToday = list.filter((h) => h.scheduledToday)
@@ -380,7 +445,14 @@ function HabitsTab({ today }: { today: string }) {
           title="No habits yet"
           body="Pick one small thing worth doing daily. Check in each day — the streak and the 66-day bar take care of the rest."
           action={
-            <Button size="sm" className="mt-2 rounded-full" onClick={() => { setEditing(null); setFormOpen(true) }}>
+            <Button
+              size="sm"
+              className="mt-2 rounded-full"
+              onClick={() => {
+                setEditing(null)
+                setFormOpen(true)
+              }}
+            >
               <Plus className="mr-1 size-4" /> New habit
             </Button>
           }
@@ -393,17 +465,30 @@ function HabitsTab({ today }: { today: string }) {
                 {doneToday} of {scheduledToday.length} done today
               </p>
               <p className="text-xs text-muted-foreground">
-                {doneToday === scheduledToday.length && scheduledToday.length > 0 ? 'All clear — streaks are safe 🎉' : 'Tap a habit to check in'}
+                {doneToday === scheduledToday.length && scheduledToday.length > 0
+                  ? 'All clear — streaks are safe 🎉'
+                  : 'Tap a habit to check in'}
               </p>
             </div>
-            <Button size="sm" variant="outline" className="h-9 rounded-full" onClick={() => { setEditing(null); setFormOpen(true) }}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 rounded-full"
+              onClick={() => {
+                setEditing(null)
+                setFormOpen(true)
+              }}
+            >
               <Plus className="mr-1 size-4" /> New
             </Button>
           </div>
 
           <div className="flex flex-col gap-2">
             {list.map((h) => (
-              <div key={h.id} className={cn('rounded-2xl border bg-card', h.archived && 'opacity-60')}>
+              <div
+                key={h.id}
+                className={cn('rounded-2xl border bg-card', h.archived && 'opacity-60')}
+              >
                 <div className="flex items-center gap-3 p-3.5">
                   <button
                     type="button"
@@ -412,37 +497,62 @@ function HabitsTab({ today }: { today: string }) {
                     onClick={() => checkin.mutate({ habitId: h.id, date: today })}
                     className={cn(
                       'flex size-11 shrink-0 items-center justify-center rounded-full border-2 text-lg transition-all active:scale-90',
-                      h.doneToday ? 'border-transparent text-white' : 'border-muted-foreground/30 bg-transparent',
-                      !h.scheduledToday && 'opacity-40',
+                      h.doneToday
+                        ? 'border-transparent text-white'
+                        : 'border-muted-foreground/30 bg-transparent',
+                      !h.scheduledToday && 'opacity-40'
                     )}
                     style={h.doneToday ? { background: h.color } : undefined}
                   >
                     {h.doneToday ? '✓' : h.emoji}
                   </button>
-                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setExpanded((e) => (e === h.id ? null : h.id))}>
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => setExpanded((e) => (e === h.id ? null : h.id))}
+                  >
                     <p className="truncate text-sm font-semibold">
                       {h.name}
-                      {h.streak > 0 && <span className="ml-1.5 text-xs font-medium text-warn">🔥 {h.streak}</span>}
-                      {h.archived && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">ARCHIVED</span>}
+                      {h.streak > 0 && (
+                        <span className="ml-1.5 text-xs font-medium text-warn">🔥 {h.streak}</span>
+                      )}
+                      {h.archived && (
+                        <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+                          ARCHIVED
+                        </span>
+                      )}
                     </p>
                     {!h.scheduledToday ? (
                       <p className="text-xs text-muted-foreground">Rest day — streak stays safe</p>
                     ) : h.building.built ? (
-                      <p className="text-xs text-income">Built in {h.building.total} days — keep it alive 🎉</p>
+                      <p className="text-xs text-income">
+                        Built in {h.building.total} days — keep it alive 🎉
+                      </p>
                     ) : (
                       <p className="text-xs text-muted-foreground">
                         Day {h.building.day} of {h.building.total}
                       </p>
                     )}
                   </button>
-                  <button type="button" aria-label={`Edit ${h.name}`} onClick={() => { setEditing(h); setFormOpen(true) }} className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground">
+                  <button
+                    type="button"
+                    aria-label={`Edit ${h.name}`}
+                    onClick={() => {
+                      setEditing(h)
+                      setFormOpen(true)
+                    }}
+                    className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
                     <Pencil className="size-4" />
                   </button>
                 </div>
 
                 {!h.building.built && h.building.day > 0 && (
                   <div className="px-3.5 pb-3">
-                    <ProgressBar value={h.building.pct} tone={h.building.pct >= 100 ? 'income' : 'primary'} />
+                    <ProgressBar
+                      value={h.building.pct}
+                      tone={h.building.pct >= 100 ? 'income' : 'primary'}
+                    />
                   </div>
                 )}
 
@@ -459,7 +569,9 @@ function HabitsTab({ today }: { today: string }) {
                         <p className="text-[10px] text-muted-foreground">best</p>
                       </div>
                       <div className="rounded-xl bg-muted p-2">
-                        <p className="text-sm font-bold tabular-nums">{Math.round(h.rate30 * 100)}%</p>
+                        <p className="text-sm font-bold tabular-nums">
+                          {Math.round(h.rate30 * 100)}%
+                        </p>
                         <p className="text-[10px] text-muted-foreground">30-day rate</p>
                       </div>
                     </div>
@@ -475,7 +587,12 @@ function HabitsTab({ today }: { today: string }) {
         </>
       )}
 
-      <HabitFormSheet open={formOpen} onOpenChange={setFormOpen} habit={editing} tz={user.timezone} />
+      <HabitFormSheet
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        habit={editing}
+        tz={user.timezone}
+      />
     </div>
   )
 }
@@ -491,7 +608,10 @@ function RoutinesTab() {
   const hasDincharya = (routines.data ?? []).some((r) => r.name.toLowerCase().includes('dincharya'))
 
   if (routines.isLoading) return <SkeletonRow />
-  if (routines.isError) return <ErrorCard message={(routines.error as Error).message} onRetry={() => routines.refetch()} />
+  if (routines.isError)
+    return (
+      <ErrorCard message={(routines.error as Error).message} onRetry={() => routines.refetch()} />
+    )
 
   const list = routines.data ?? []
 
@@ -500,7 +620,15 @@ function RoutinesTab() {
       <SectionHeader
         title="Play a routine"
         action={
-          <Button size="sm" variant="outline" className="h-8 rounded-full px-3 text-xs" onClick={() => { setEditing(null); setFormOpen(true) }}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-full px-3 text-xs"
+            onClick={() => {
+              setEditing(null)
+              setFormOpen(true)
+            }}
+          >
             <Plus className="mr-1 size-3.5" /> New routine
           </Button>
         }
@@ -514,10 +642,20 @@ function RoutinesTab() {
           action={
             <div className="mt-3 flex flex-col gap-2">
               <div className="flex justify-center gap-2">
-                <Button size="sm" className="rounded-full" onClick={() => { setEditing(null); setFormOpen(true) }}>
+                <Button
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => {
+                    setEditing(null)
+                    setFormOpen(true)
+                  }}
+                >
                   <Plus className="mr-1 size-4" /> Build a routine
                 </Button>
-                <DincharyaButton busy={dincharya.isPending} onInstall={() => installDincharya(dincharya)} />
+                <DincharyaButton
+                  busy={dincharya.isPending}
+                  onInstall={() => installDincharya(dincharya)}
+                />
               </div>
             </div>
           }
@@ -527,14 +665,23 @@ function RoutinesTab() {
           {list.map((r) => (
             <div key={r.id} className="rounded-2xl border bg-card p-4">
               <div className="flex items-center gap-3">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-xl" aria-hidden>
+                <span
+                  className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-xl"
+                  aria-hidden
+                >
                   {r.emoji}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">
                     {r.name}
-                    {r.streak > 0 && <span className="ml-1.5 text-xs font-medium text-warn">🔥 {r.streak}</span>}
-                    {r.todayRun && <span className="ml-1.5 rounded-full bg-income/10 px-1.5 py-0.5 text-[9px] font-bold text-income">PLAYED</span>}
+                    {r.streak > 0 && (
+                      <span className="ml-1.5 text-xs font-medium text-warn">🔥 {r.streak}</span>
+                    )}
+                    {r.todayRun && (
+                      <span className="ml-1.5 rounded-full bg-income/10 px-1.5 py-0.5 text-[9px] font-bold text-income">
+                        PLAYED
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {r.steps.length} step{r.steps.length === 1 ? '' : 's'}
@@ -542,10 +689,23 @@ function RoutinesTab() {
                     {r.lastRun ? ` · last ${r.lastRun.date}` : ' · never played'}
                   </p>
                 </div>
-                <Button size="sm" className="h-9 rounded-full px-4" onClick={() => setPlaying(r)} disabled={r.steps.length === 0}>
+                <Button
+                  size="sm"
+                  className="h-9 rounded-full px-4"
+                  onClick={() => setPlaying(r)}
+                  disabled={r.steps.length === 0}
+                >
                   <Play className="mr-1 size-4" /> Play
                 </Button>
-                <button type="button" aria-label={`Edit ${r.name}`} onClick={() => { setEditing(r); setFormOpen(true) }} className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground">
+                <button
+                  type="button"
+                  aria-label={`Edit ${r.name}`}
+                  onClick={() => {
+                    setEditing(r)
+                    setFormOpen(true)
+                  }}
+                  className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
                   <Pencil className="size-4" />
                 </button>
               </div>
@@ -559,14 +719,20 @@ function RoutinesTab() {
 
           {!hasDincharya && (
             <div className="flex items-center gap-3 rounded-2xl border border-dashed p-4">
-              <span className="text-xl" aria-hidden>🕉️</span>
+              <span className="text-xl" aria-hidden>
+                🕉️
+              </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">Dincharya — the classical daily rhythm</p>
                 <p className="text-xs text-muted-foreground">
-                  {DINCHARYA.steps.length} steps: wake before sunrise → deep work → light dinner → bed by 22:30.
+                  {DINCHARYA.steps.length} steps: wake before sunrise → deep work → light dinner →
+                  bed by 22:30.
                 </p>
               </div>
-              <DincharyaButton busy={dincharya.isPending} onInstall={() => installDincharya(dincharya)} />
+              <DincharyaButton
+                busy={dincharya.isPending}
+                onInstall={() => installDincharya(dincharya)}
+              />
             </div>
           )}
         </div>
@@ -582,7 +748,13 @@ function RoutinesTab() {
 
 function DincharyaButton({ busy, onInstall }: { busy: boolean; onInstall: () => void }) {
   return (
-    <Button size="sm" variant="outline" className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold" disabled={busy} onClick={onInstall}>
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold"
+      disabled={busy}
+      onClick={onInstall}
+    >
       {busy ? 'Installing…' : 'Install'}
     </Button>
   )

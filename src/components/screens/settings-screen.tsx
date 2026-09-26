@@ -146,6 +146,12 @@ export function SettingsScreen({ user }: { user: import('@/lib/types').UserDTO }
 
 function ProfileCard({ name, email }: { name: string; email: string }) {
   const gamification = useGamification()
+  const [showAllBadges, setShowAllBadges] = useState(false)
+  const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(null)
+  const allBadges = gamification.data?.badges ?? []
+  const orderedBadges = [...allBadges.filter((badge) => badge.earned), ...allBadges.filter((badge) => !badge.earned)]
+  const visibleBadges = showAllBadges ? orderedBadges : orderedBadges.slice(0, 5)
+  const selectedBadge = allBadges.find((badge) => badge.id === selectedBadgeId)
 
   return (
     <section className="rounded-2xl border bg-card p-4">
@@ -180,21 +186,37 @@ function ProfileCard({ name, email }: { name: string; email: string }) {
           </div>
 
           <div className="mt-4 grid grid-cols-5 gap-2">
-            {gamification.data.badges.map((b) => (
-              <div
+            {visibleBadges.map((b) => (
+              <button
+                type="button"
                 key={b.id}
                 title={`${b.title} — ${b.description}${b.earned ? '' : ' (locked)'}`}
+                aria-pressed={selectedBadgeId === b.id}
+                onClick={() => setSelectedBadgeId((current) => (current === b.id ? null : b.id))}
                 className={cn(
                   'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl border text-center',
                   b.earned ? 'border-warn/40 bg-warn/5' : 'border-dashed bg-muted/30 opacity-45',
+                  selectedBadgeId === b.id && 'ring-2 ring-primary/50',
                 )}
               >
                 <span className="text-lg leading-none" aria-hidden>{b.earned ? b.emoji : '🔒'}</span>
                 <span className="w-full truncate px-0.5 text-[8px] font-medium leading-tight text-muted-foreground">{b.title}</span>
-              </div>
+              </button>
             ))}
           </div>
-          <p className="mt-2 text-[10px] text-muted-foreground">Tap a badge to see how to earn it.</p>
+          {selectedBadge && (
+            <div className="mt-3 rounded-xl bg-muted/60 p-3">
+              <p className="text-xs font-semibold">{selectedBadge.emoji} {selectedBadge.title}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{selectedBadge.description}</p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowAllBadges((value) => !value)}
+            className="mt-3 text-xs font-semibold text-primary"
+          >
+            {showAllBadges ? 'Show fewer badges' : `View all ${gamification.data.totalCount} badges`}
+          </button>
         </>
       )}
     </section>

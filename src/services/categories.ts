@@ -29,14 +29,29 @@ export async function seedDefaultCategories(userId: string): Promise<void> {
       kind: c.kind,
       isSystem: true,
     })),
+    // Login and the first categories request can race on a fresh account.
+    // The schema's @@unique([userId, name]) constraint makes this safe.
+    skipDuplicates: true,
   })
 }
 
 export async function listCategories(userId: string): Promise<CategoryDTO[]> {
-  const rows = await db.category.findMany({
+  let rows = await db.category.findMany({
     where: { userId },
     orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
   })
+
+  // Backfill accounts created before category seeding was introduced or
+  // interrupted during registration. Quick Add depends on these rows, so an
+  // empty list should heal itself instead of leaving expense entry blocked.
+  if (rows.length === 0) {
+    await seedDefaultCategories(userId)
+    rows = await db.category.findMany({
+      where: { userId },
+      orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+    })
+  }
+
   return rows.map(toDTO)
 }
 

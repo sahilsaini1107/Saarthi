@@ -62,6 +62,13 @@ function shape(
   const xp = practices.reduce((sum, p) => sum + p.minutes, 0)
   const level = levelForXp(xp)
   const pace = paceMinutes(practices, shiftISO(today, -29), today, today) // trailing 30 days
+  // A single session extrapolated across a 30-day window produces alarming,
+  // meaningless ETAs (for example "~5370d"). Wait for a small trend before
+  // presenting a forecast; progress and XP remain visible immediately.
+  const practiceDays30d = new Set(
+    practices.filter((p) => p.date >= shiftISO(today, -29) && p.date <= today).map((p) => p.date),
+  ).size
+  const forecastPace = practiceDays30d >= 3 ? pace : null
   return {
     id: s.id,
     name: s.name,
@@ -81,13 +88,13 @@ function shape(
     minutes7d: minutesTrailing(practices, today, 7),
     minutes30d: minutesTrailing(practices, today, 30),
     lastPracticed: practices.length ? practices.map((p) => p.date).sort().at(-1)! : null,
-    etaDays: etaDaysToLevel(xp, s.targetLevel, pace),
+    etaDays: etaDaysToLevel(xp, s.targetLevel, forecastPace),
     etaLabel:
       level >= s.targetLevel
         ? 'Target reached'
-        : pace == null || pace <= 0
+        : forecastPace == null || forecastPace <= 0
           ? null
-          : `${Math.ceil(((levelProgress(xp).nextAt ?? 0) - xp) / pace)}d to level ${level + 1}`,
+          : `${Math.ceil(((levelProgress(xp).nextAt ?? 0) - xp) / forecastPace)}d to level ${level + 1}`,
     recent: recentPracticeStrip(practices, today, STRIP_DAYS),
     logs: practices
       .slice()

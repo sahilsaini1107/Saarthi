@@ -122,7 +122,18 @@ export async function createInvestment(
   if (input.maturityDate != null && !/^\d{4}-\d{2}-\d{2}$/.test(input.maturityDate)) {
     throw new HttpError('Maturity date must be YYYY-MM-DD', 422)
   }
+  if (input.openingBuy) {
+    if (!(input.openingBuy.quantity > 0)) throw new HttpError('Opening quantity must be positive', 422)
+    if (!Number.isInteger(input.openingBuy.amountPaise) || input.openingBuy.amountPaise <= 0) {
+      throw new HttpError('Opening cost must be positive', 422)
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.openingBuy.date)) {
+      throw new HttpError('Opening date must be YYYY-MM-DD', 422)
+    }
+  }
 
+  const priceDate = toUTC(todayISO(tz))
+  const openingBuy = input.openingBuy
   const row = await db.investment.create({
     data: {
       userId,
@@ -137,19 +148,31 @@ export async function createInvestment(
       couponFrequency: parseCouponFrequency(input.couponFrequency),
       currentPricePaise: BigInt(input.currentPricePaise),
       notes: input.notes?.trim() || null,
+      // Keep creation atomic and to a single database round-trip. This matters
+      // on serverless Postgres where a cold connection previously made the
+      // investment, price point and opening-buy sequence time out part-way.
+      pricePoints: {
+        create: {
+          userId,
+          date: priceDate,
+          pricePaise: BigInt(input.currentPricePaise),
+        },
+      },
+      ...(openingBuy
+        ? {
+            txns: {
+              create: {
+                userId,
+                kind: 'buy',
+                quantity: openingBuy.quantity,
+                amountPaise: BigInt(openingBuy.amountPaise),
+                date: toUTC(openingBuy.date),
+              },
+            },
+          }
+        : {}),
     },
   })
-
-  await recordPricePoint(userId, row.id, input.currentPricePaise, tz)
-
-  if (input.openingBuy) {
-    await recordTxn(userId, row.id, {
-      kind: 'buy',
-      quantity: input.openingBuy.quantity,
-      amountPaise: input.openingBuy.amountPaise,
-      date: input.openingBuy.date,
-    })
-  }
 
   return rowToDTO(row)
 }
