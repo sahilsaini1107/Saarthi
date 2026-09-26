@@ -8,11 +8,15 @@ import {
   CalendarClock,
   Check,
   ClipboardCheck,
+  Droplets,
   Dumbbell,
+  Footprints,
   HeartPulse,
+  Moon,
   Pencil,
   Pill,
   Plus,
+  ShieldCheck,
   Sparkles,
 } from 'lucide-react'
 import { useUi } from '@/components/saarthi-app'
@@ -103,6 +107,7 @@ export function HealthCoachScreen() {
   const activeSkin = skinData.products.filter((product) => product.status === 'active')
   const hasAm = activeSkin.some((product) => product.routineAm)
   const hasPm = activeSkin.some((product) => product.routinePm)
+  const hasSpf = activeSkin.some((product) => product.routineAm && /spf|sunscreen|sun screen/i.test(`${product.name} ${product.kind} ${product.notes ?? ''}`))
   const skinExpected = Number(hasAm) + Number(hasPm)
   const skinDone = Number(hasAm && skinData.today.amDone) + Number(hasPm && skinData.today.pmDone)
   const supplementPct = supplementData.scheduledCount
@@ -208,6 +213,18 @@ export function HealthCoachScreen() {
         </div>
       </section>
 
+      <section>
+        <SectionHeader title="Daily anchors" />
+        <div className="grid grid-cols-2 gap-2">
+          <AnchorCard icon={Moon} label="Sleep" value={check.day?.sleepMinutes ? `${(check.day.sleepMinutes / 60).toFixed(check.day.sleepMinutes % 60 === 0 ? 0 : 1)} h` : '—'} hint="7-9 h" done={(check.day?.sleepMinutes ?? 0) >= 420 && (check.day?.sleepMinutes ?? 0) <= 540} />
+          <AnchorCard icon={Droplets} label="Water" value={check.day?.waterMl ? `${Math.round(check.day.waterMl / 100) / 10} L` : '—'} hint="3 L" done={(check.day?.waterMl ?? 0) >= 3000} />
+          <AnchorCard icon={Footprints} label="Steps" value={check.day?.steps ? check.day.steps.toLocaleString('en-IN') : '—'} hint="8k-10k" done={(check.day?.steps ?? 0) >= 8000} />
+          <AnchorCard icon={Dumbbell} label="Training" value={trainedToday ? 'Done' : fit.nextWorkout ? 'Ready' : 'Plan'} hint="45-60 min" done={trainedToday} />
+          <AnchorCard icon={Sparkles} label="Protein" value={proteinTarget ? `${protein}/${proteinTarget} g` : `${protein} g`} hint="every meal" done={proteinTarget ? protein >= proteinTarget : protein > 0} />
+          <AnchorCard icon={ShieldCheck} label="SPF" value={hasSpf && skinData.today.amDone ? 'Done' : hasSpf ? 'AM' : 'Add'} hint="SPF 30-50" done={hasSpf && skinData.today.amDone} />
+        </div>
+      </section>
+
       <section className="rounded-2xl border bg-card p-4">
         <div className="flex items-center justify-between"><div><p className="text-sm font-semibold">Today's fuel</p><p className="text-[11px] text-muted-foreground">Logged meals and quick adds combined</p></div><button type="button" onClick={() => navigate('/growth/fitness/food')} className="text-xs font-semibold text-primary">Open food</button></div>
         {calorieTarget && proteinTarget ? (
@@ -260,6 +277,10 @@ function MacroProgress({ label, value, percent }: { label: string; value: string
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-muted/50 p-3"><p className="text-[10px] font-medium text-muted-foreground">{label}</p><p className="mt-0.5 text-sm font-bold tabular-nums">{value}</p></div>
+}
+
+function AnchorCard({ icon: Icon, label, value, hint, done }: { icon: typeof HeartPulse; label: string; value: string; hint: string; done: boolean }) {
+  return <div className="rounded-2xl border bg-card p-3"><div className="flex items-center justify-between"><span className={cn('flex size-8 items-center justify-center rounded-lg', done ? 'bg-income/10 text-income' : 'bg-muted text-muted-foreground')}><Icon className="size-4" /></span><span className="text-sm font-bold tabular-nums">{value}</span></div><p className="mt-2 text-xs font-semibold">{label}</p><p className="text-[10px] text-muted-foreground">{hint}</p></div>
 }
 
 function SignalCard({ emoji, label, value, hint, onClick }: { emoji: string; label: string; value: string; hint: string; onClick: () => void }) {

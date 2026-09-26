@@ -9,6 +9,7 @@ import {
   PPL_SIX_DAY,
   PROTEIN_CHIPS,
   UPPER_LOWER_FOUR_DAY,
+  VEGETARIAN_TRANSFORMATION,
 } from '@/lib/fitness-presets'
 
 const MUSCLE_GROUPS = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core', 'full_body', 'cardio', 'other']
@@ -22,6 +23,7 @@ describe('plan presets are structurally valid', () => {
     expect(ids).toContain('ppl_6')
     expect(ids).toContain('upper_lower_4')
     expect(ids).toContain('full_body_3')
+    expect(ids).toContain('vegetarian_transformation')
   })
 
   it('gives every preset a level line for the picker', () => {
@@ -107,6 +109,20 @@ describe('preset shapes match their descriptions', () => {
 
   it('Foundation A/B alternates two days', () => {
     expect(FOUNDATION_AB.days).toHaveLength(2)
+  })
+
+  it('Vegetarian Transformation encodes the full elite weekly system', () => {
+    expect(VEGETARIAN_TRANSFORMATION.days.map((d) => d.label)).toEqual([
+      'Push',
+      'Lower',
+      'Active Recovery',
+      'Pull',
+      'Full Body Conditioning',
+      'Cardio + Core',
+    ])
+    expect(VEGETARIAN_TRANSFORMATION.note).toContain('deload')
+    expect(VEGETARIAN_TRANSFORMATION.note).toContain('3 L water')
+    expect(VEGETARIAN_TRANSFORMATION.days.flatMap((d) => d.exercises).some((e) => e.name === 'Moderate Cardio')).toBe(true)
   })
 
   it('the core flow is entirely bodyweight', () => {

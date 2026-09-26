@@ -84,7 +84,7 @@ function perMl100(
   return { ...per100(name, kcal, protein, carbs, fat, 0, category, isVeg, tier), unit: 'ml', basisQty: 100 }
 }
 
-/* ---------------- S tier — build the diet on these ---------------- */
+/* ---------------- S tier — build a vegetarian diet on these ---------------- */
 
 export const S_TIER: readonly FoodPreset[] = [
   per100('Whey protein powder', 400, 80, 8, 6, 0, 'supplement', true, 'S', 'Per 100 g of powder — a 30 g scoop is roughly 24 g protein.'),
@@ -92,9 +92,7 @@ export const S_TIER: readonly FoodPreset[] = [
   per100('Low-fat paneer', 160, 18, 4, 8, 0, 'dairy', true, 'S'),
   per100('Greek yogurt / hung curd', 59, 10, 3.6, 0.4, 0, 'dairy', true, 'S'),
   per100('Soya chunks (dry)', 345, 52, 33, 0.5, 13, 'soy', true, 'S', 'Dry weight — they roughly triple after soaking.'),
-  per100('Egg whites', 52, 11, 0.7, 0.2, 0, 'egg', false, 'S'),
-  per100('Chicken breast, skinless (cooked)', 165, 31, 0, 3.6, 0, 'meat', false, 'S'),
-  per100('Lean fish / prawns', 99, 20, 0.2, 1.7, 0, 'meat', false, 'S'),
+  per100('Seitan', 143, 25, 14, 2, 1, 'dal', true, 'S', 'Wheat gluten; skip if gluten does not suit you.'),
 ]
 
 /* ---------------- A tier — excellent support ---------------- */
@@ -104,9 +102,8 @@ export const A_TIER: readonly FoodPreset[] = [
   per100('Tempeh', 193, 19, 9, 11, 0, 'soy', true, 'A'),
   per100('Edamame (boiled)', 121, 11, 9, 5, 5, 'soy', true, 'A'),
   perMl100('Skimmed milk', 34, 3.4, 5, 0.1, 'dairy', true, 'A'),
-  perPiece('Whole egg', 72, 6.3, 0.4, 5, 0, 'egg', false, 'A'),
-  per100('Chicken thigh, skinless', 209, 26, 0, 11, 0, 'meat', false, 'A'),
-  per100('Fatty fish (salmon / mackerel)', 208, 20, 0, 13, 0, 'meat', false, 'A'),
+  per100('Sprouted moong', 30, 3, 6, 0.2, 1.8, 'dal', true, 'A'),
+  per100('Besan / gram flour', 387, 22, 58, 7, 11, 'dal', true, 'A'),
 ]
 
 /* ---------------- everyday Indian vegetarian staples ---------------- */
@@ -119,6 +116,9 @@ export const STAPLES: readonly FoodPreset[] = [
   per100('Dal (cooked)', 116, 9, 20, 0.4, 8, 'dal', true, 'B'),
   per100('Rajma (cooked)', 127, 9, 23, 0.5, 6, 'dal', true, 'B'),
   per100('Moong sprouts', 30, 3, 6, 0.2, 1.8, 'dal', true, 'B'),
+  per100('Chia seeds', 486, 17, 42, 31, 34, 'nut_seed', true, 'C', 'Omega-3 support; calorie-dense, use measured portions.'),
+  per100('Flaxseed', 534, 18, 29, 42, 27, 'nut_seed', true, 'C', 'Grind before eating for better use of the fats.'),
+  per100('Walnuts', 654, 15, 14, 65, 7, 'nut_seed', true, 'C', 'Omega-3 support; calorie-dense.'),
   per100('Peanut butter', 588, 25, 20, 50, 6, 'nut_seed', true, 'C', 'Calorie-dense — easy to overshoot, weigh it.'),
   per100('Almonds', 579, 21, 22, 50, 12, 'nut_seed', true, 'C'),
   per100('Oats (dry)', 380, 13, 67, 7, 10, 'grain', true, 'C'),

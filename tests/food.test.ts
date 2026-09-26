@@ -15,6 +15,7 @@ import {
   toWholeGrams,
   type FoodLike,
 } from '@/lib/food'
+import { FOOD_PRESETS } from '@/lib/food-presets'
 
 /** 100 g roasted chana: 20 g protein, 61 g carbs, 5 g fat, 364 kcal. */
 const chana: FoodLike = {
@@ -214,6 +215,15 @@ describe('enum guards', () => {
     expect(isFoodCategory('dessert')).toBe(false)
     expect(isProteinTier('S')).toBe(true)
     expect(isProteinTier('Z')).toBe(false)
+  })
+})
+
+describe('vegetarian starter library', () => {
+  it('seeds only vegetarian foods by default', () => {
+    expect(FOOD_PRESETS.length).toBeGreaterThan(0)
+    expect(FOOD_PRESETS.every((food) => food.isVeg)).toBe(true)
+    expect(FOOD_PRESETS.map((food) => food.name)).not.toContain('Chicken breast, skinless (cooked)')
+    expect(FOOD_PRESETS.map((food) => food.name)).not.toContain('Lean fish / prawns')
   })
 })
 

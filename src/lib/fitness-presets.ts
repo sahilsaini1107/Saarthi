@@ -32,6 +32,82 @@ export interface PlanPreset {
   days: PresetDay[]
 }
 
+/** The user's requested 6-month vegetarian transformation blueprint. */
+export const VEGETARIAN_TRANSFORMATION: PlanPreset = {
+  id: 'vegetarian_transformation',
+  name: 'Vegetarian Transformation',
+  emoji: '🌱',
+  note: 'Six-month coach system: 4 strength days, 1 active recovery day and 1 cardio/core day. Add reps or load weekly when form stays clean; every 4th week deload by cutting sets 40-50%. Daily anchors: 8k-10k steps, 3 L water, 7-9 h sleep, SPF every morning, protein at every meal and mostly whole vegetarian foods.',
+  days: [
+    {
+      label: 'Push',
+      focus: 'Chest · Shoulders · Triceps',
+      exercises: [
+        { name: 'Bench Press', muscleGroup: 'chest', equipment: 'barbell', sets: 3, repMin: 8, repMax: 12, restSeconds: 180, note: 'Or machine chest press. Form before load.' },
+        { name: 'Overhead Shoulder Press', muscleGroup: 'shoulders', equipment: 'barbell', sets: 3, repMin: 8, repMax: 12, restSeconds: 150 },
+        { name: 'Incline Dumbbell Press', muscleGroup: 'chest', equipment: 'dumbbell', sets: 3, repMin: 10, repMax: 12, restSeconds: 120 },
+        { name: 'Dumbbell Lateral Raise', muscleGroup: 'shoulders', equipment: 'dumbbell', sets: 3, repMin: 12, repMax: 15, restSeconds: 75 },
+        { name: 'Dips', muscleGroup: 'arms', equipment: 'bodyweight', sets: 3, repMin: 6, repMax: 12, restSeconds: 120, note: 'Use assistance if needed; stop before shoulders pinch.' },
+        { name: 'Push-up', muscleGroup: 'chest', equipment: 'bodyweight', sets: 2, repMin: 10, repMax: 20, restSeconds: 60 },
+      ],
+    },
+    {
+      label: 'Lower',
+      focus: 'Squat · Hinge · Lunge',
+      exercises: [
+        { name: 'Barbell Squat', muscleGroup: 'legs', equipment: 'barbell', sets: 4, repMin: 6, repMax: 10, restSeconds: 210, note: 'Depth and bracing first; leave 2 reps in reserve.' },
+        { name: 'Romanian Deadlift', muscleGroup: 'legs', equipment: 'barbell', sets: 3, repMin: 8, repMax: 12, restSeconds: 180 },
+        { name: 'Walking Lunge', muscleGroup: 'legs', equipment: 'dumbbell', sets: 3, repMin: 10, repMax: 12, restSeconds: 120, note: 'Reps are per leg.' },
+        { name: 'Leg Curl', muscleGroup: 'legs', equipment: 'machine', sets: 3, repMin: 10, repMax: 15, restSeconds: 90 },
+        { name: 'Calf Raise', muscleGroup: 'legs', equipment: 'machine', sets: 4, repMin: 12, repMax: 20, restSeconds: 60 },
+      ],
+    },
+    {
+      label: 'Active Recovery',
+      focus: 'Walking · Yoga · Mobility',
+      exercises: [
+        { name: 'Brisk Walk', muscleGroup: 'cardio', equipment: 'bodyweight', sets: 1, secondsMin: 1800, secondsMax: 2700, restSeconds: 60, note: 'Easy conversational pace; this supports fat loss without draining recovery.' },
+        { name: 'Cat-Cow', muscleGroup: 'back', equipment: 'bodyweight', sets: 2, repMin: 8, repMax: 12, restSeconds: 20 },
+        { name: 'Hip Flexor Stretch', muscleGroup: 'legs', equipment: 'bodyweight', sets: 2, secondsMin: 30, secondsMax: 45, restSeconds: 15, note: 'Each side.' },
+        { name: 'Thoracic Rotation', muscleGroup: 'back', equipment: 'bodyweight', sets: 2, secondsMin: 30, secondsMax: 45, restSeconds: 15, note: 'Each side.' },
+        { name: 'Childs Pose Breathing', muscleGroup: 'other', equipment: 'bodyweight', sets: 2, secondsMin: 60, secondsMax: 90, restSeconds: 15 },
+      ],
+    },
+    {
+      label: 'Pull',
+      focus: 'Back · Rear delts · Biceps',
+      exercises: [
+        { name: 'Pull-up', muscleGroup: 'back', equipment: 'bodyweight', sets: 3, repMin: 5, repMax: 10, restSeconds: 150, note: 'Assisted pull-ups are fine; reduce assistance over time.' },
+        { name: 'Barbell Row', muscleGroup: 'back', equipment: 'barbell', sets: 3, repMin: 8, repMax: 12, restSeconds: 150 },
+        { name: 'Seated Cable Row', muscleGroup: 'back', equipment: 'cable', sets: 3, repMin: 10, repMax: 12, restSeconds: 120 },
+        { name: 'Face Pull', muscleGroup: 'shoulders', equipment: 'cable', sets: 3, repMin: 12, repMax: 15, restSeconds: 75, note: 'Shoulder health; keep this crisp and controlled.' },
+        { name: 'Dumbbell Curl', muscleGroup: 'arms', equipment: 'dumbbell', sets: 3, repMin: 10, repMax: 15, restSeconds: 75 },
+      ],
+    },
+    {
+      label: 'Full Body Conditioning',
+      focus: 'Circuit · Carries · HIIT',
+      exercises: [
+        { name: 'Goblet Squat', muscleGroup: 'legs', equipment: 'dumbbell', sets: 3, repMin: 10, repMax: 15, restSeconds: 75 },
+        { name: 'Push-up', muscleGroup: 'chest', equipment: 'bodyweight', sets: 3, repMin: 8, repMax: 15, restSeconds: 60 },
+        { name: 'Kettlebell Swing', muscleGroup: 'full_body', equipment: 'other', sets: 3, repMin: 12, repMax: 20, restSeconds: 75, note: 'Dumbbell swing works if no kettlebell is available.' },
+        { name: 'Farmer Carry', muscleGroup: 'full_body', equipment: 'dumbbell', sets: 4, secondsMin: 30, secondsMax: 45, restSeconds: 75 },
+        { name: 'HIIT Bike', muscleGroup: 'cardio', equipment: 'machine', sets: 1, secondsMin: 900, secondsMax: 1200, restSeconds: 60, note: '15-20 minutes total: hard intervals, easy recoveries.' },
+      ],
+    },
+    {
+      label: 'Cardio + Core',
+      focus: 'Zone 2 · Abs',
+      exercises: [
+        { name: 'Moderate Cardio', muscleGroup: 'cardio', equipment: 'machine', sets: 1, secondsMin: 1800, secondsMax: 2700, restSeconds: 60, note: 'Jog, cycle, swim or incline walk at a sustainable pace.' },
+        { name: 'Plank', muscleGroup: 'core', equipment: 'bodyweight', sets: 3, secondsMin: 30, secondsMax: 60, restSeconds: 60 },
+        { name: 'Hanging Knee Raise', muscleGroup: 'core', equipment: 'bodyweight', sets: 3, repMin: 10, repMax: 15, restSeconds: 60 },
+        { name: 'Dead Bug', muscleGroup: 'core', equipment: 'bodyweight', sets: 3, repMin: 8, repMax: 12, restSeconds: 45, note: 'Per side; slow and braced.' },
+      ],
+    },
+  ],
+}
+
 export const FOUNDATION_AB: PlanPreset = {
   id: 'foundation_ab',
   name: 'Foundation A/B',
@@ -269,6 +345,7 @@ export const MOBILITY_FLOW: PlanPreset = {
 }
 
 export const PLAN_PRESETS: readonly PlanPreset[] = [
+  VEGETARIAN_TRANSFORMATION,
   FOUNDATION_AB,
   FULL_BODY_THREE_DAY,
   UPPER_LOWER_FOUR_DAY,
@@ -279,6 +356,7 @@ export const PLAN_PRESETS: readonly PlanPreset[] = [
 
 /** Short "who is this for" line shown next to each preset in the picker. */
 export const PLAN_PRESET_LEVELS: Record<string, string> = {
+  vegetarian_transformation: '6 days · 6-month system',
   foundation_ab: '3 days · beginner',
   full_body_3: '3 days · beginner',
   upper_lower_4: '4 days · intermediate',
@@ -320,5 +398,6 @@ export const SUPPLEMENT_NOTES: readonly { name: string; verdict: string; detail:
   { name: 'Whey / plant protein', verdict: 'Optional', detail: 'Only when food alone can\u2019t reach the daily protein target.' },
   { name: 'Vitamin B12', verdict: 'Check', detail: 'Vegetarian diets run low — get tested or use a reliable source.' },
   { name: 'Vitamin D', verdict: 'Individual', detail: 'Depends on sun exposure and bloodwork. Never megadose.' },
+  { name: 'Omega-3', verdict: 'Food first', detail: 'Use walnuts, flax/chia or algae oil if your clinician recommends it.' },
   { name: 'Fat burners / boosters', verdict: 'Avoid', detail: 'Skip fat burners, testosterone boosters and “muscle” blends.' },
 ]
