@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormSheetBody, SegmentedControl } from '@/components/ui/saarthi'
 import { useCreateSkill, useDeleteSkill, useUpdateSkill } from '@/hooks/queries'
 import { SKILL_CATEGORIES, MAX_LEVEL } from '@/lib/skills'
 import { cn } from '@/lib/utils'
@@ -72,80 +72,83 @@ function SkillForm({ skill, prefill, onClose }: { skill: SkillWithStats | null; 
   }
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
-      <Field label="Skill">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Public speaking, Guitar, System design" />
-      </Field>
-
-      <Field label="Area">
-        <div className="flex flex-wrap gap-2">
-          {SKILL_CATEGORIES.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setCategory(c.key)}
-              className={cn(
-                'flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-all active:scale-95',
-                category === c.key ? 'border-transparent bg-primary text-primary-foreground' : 'bg-card hover:bg-accent',
-              )}
-            >
-              <span aria-hidden>{c.emoji}</span> {c.label}
-            </button>
-          ))}
+    <FormSheetBody>
+      <FormCard title="Skill identity" description="Name the capability and the area it belongs to.">
+        <div className="flex flex-col gap-3">
+          <Field label="Skill">
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Public speaking, Guitar, System design" />
+          </Field>
+          <Field label="Area">
+            <div className="flex flex-wrap gap-2">
+              {SKILL_CATEGORIES.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setCategory(c.key)}
+                  className={cn(
+                    'flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-all active:scale-95',
+                    category === c.key ? 'border-transparent bg-primary text-primary-foreground' : 'bg-background hover:bg-accent',
+                  )}
+                >
+                  <span aria-hidden>{c.emoji}</span> {c.label}
+                </button>
+              ))}
+            </div>
+          </Field>
         </div>
-      </Field>
+      </FormCard>
 
-      <Field label={`Target level — ${targetLevel}`} hint="The ETA is calculated at this level. Change it any time.">
-        <input
-          type="range"
-          min={1}
-          max={MAX_LEVEL}
-          value={targetLevel}
-          onChange={(e) => setTargetLevel(Number(e.target.value))}
-          className="w-full accent-primary"
-          aria-label="Target level"
-        />
-      </Field>
-
-      <Field label="Why it matters" hint="Optional — the pull you'll reread on low-energy days">
-        <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What becoming good at this unlocks…" className="min-h-16 rounded-xl" />
-      </Field>
-
-      {!isNew && (
-        <Field label="Status">
-          <div className="flex gap-2">
-            {(['active', 'paused'] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStatus(s)}
-                className={cn(
-                  'h-9 flex-1 rounded-full border text-sm font-medium capitalize transition-all active:scale-95',
-                  status === s ? 'border-transparent bg-primary text-primary-foreground' : 'bg-card hover:bg-accent',
-                )}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+      <FormCard title="Target" description="The ETA is calculated at this level. Change it any time.">
+        <Field label={`Target level — ${targetLevel}`}>
+          <input
+            type="range"
+            min={1}
+            max={MAX_LEVEL}
+            value={targetLevel}
+            onChange={(e) => setTargetLevel(Number(e.target.value))}
+            className="w-full accent-primary"
+            aria-label="Target level"
+          />
         </Field>
-      )}
+      </FormCard>
 
-      <Button onClick={onSave} disabled={!valid || pending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {pending ? 'Saving…' : isNew ? 'Add skill' : 'Save changes'}
-      </Button>
+      <FormCard title="Motivation">
+        <Field label="Why it matters" hint="Optional — the pull you'll reread on low-energy days">
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What becoming good at this unlocks…" className="min-h-16 rounded-xl" />
+        </Field>
+      </FormCard>
 
       {!isNew && (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            if (confirm(`Delete "${skill.name}" and its full practice history?`)) del.mutate(skill.id, { onSuccess: onClose })
-          }}
-          className="text-expense"
-        >
-          <Trash2 className="mr-1 size-4" /> Delete skill
-        </Button>
+        <FormCard title="Status">
+          <Field label="Status">
+            <SegmentedControl
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'paused', label: 'Paused' },
+              ]}
+            />
+          </Field>
+        </FormCard>
       )}
-    </div>
+
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || pending} className="h-12 rounded-xl text-base font-semibold">
+          {pending ? 'Saving…' : isNew ? 'Add skill' : 'Save changes'}
+        </Button>
+        {!isNew && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (confirm(`Delete "${skill.name}" and its full practice history?`)) del.mutate(skill.id, { onSuccess: onClose })
+            }}
+            className="text-expense"
+          >
+            <Trash2 className="mr-1 size-4" /> Delete skill
+          </Button>
+        )}
+      </FormActions>
+    </FormSheetBody>
   )
 }

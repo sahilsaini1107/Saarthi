@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormSheetBody, SegmentedControl } from '@/components/ui/saarthi'
 import { useCreateContent, useDeleteContent, useUpdateContent, useUploadContentFile } from '@/hooks/queries'
 import { CONTENT_KINDS, isHttpUrl, youtubeId } from '@/lib/content'
 import { cn } from '@/lib/utils'
@@ -121,7 +121,9 @@ function ContentForm({ item, prefillUrl, onClose }: { item: ContentItemDTO | nul
   const kindSelected = (k: string) => (isNew ? (kind === 'auto' ? false : kind === k) : kind === k)
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
+    <FormSheetBody>
+      <FormCard title="Source" description="Paste a link or attach a file; Saarthi chooses the best in-app view.">
+        <div className="flex flex-col gap-3">
       <Field label="Link" hint={previewId ? 'YouTube detected — plays right inside Saarthi' : undefined}>
         <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=… or an article" inputMode="url" />
       </Field>
@@ -155,28 +157,22 @@ function ContentForm({ item, prefillUrl, onClose }: { item: ContentItemDTO | nul
           ))}
         </div>
       </Field>
+        </div>
+      </FormCard>
 
-      <Field label="Title" hint="Optional for links — the hostname fills in">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. That talk that changed everything" />
-      </Field>
+      <FormCard title="Details">
+        <div className="flex flex-col gap-3">
+          <Field label="Title" hint="Optional for links — the hostname fills in">
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. That talk that changed everything" />
+          </Field>
 
       {!isNew && (
         <Field label="Where is it?">
-          <div className="flex gap-2">
-            {STATUS_CHIPS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStatus(s)}
-                className={cn(
-                  'h-9 flex-1 rounded-full border text-sm font-medium capitalize transition-all active:scale-95',
-                  status === s ? 'border-transparent bg-primary text-primary-foreground' : 'bg-card hover:bg-accent',
-                )}
-              >
-                {s === 'inbox' ? 'In queue' : s === 'active' ? 'In progress' : 'Done'}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            value={status}
+            onChange={setStatus}
+            options={STATUS_CHIPS.map((s) => ({ value: s, label: s === 'inbox' ? 'Queue' : s === 'active' ? 'Progress' : 'Done' }))}
+          />
         </Field>
       )}
 
@@ -187,8 +183,11 @@ function ContentForm({ item, prefillUrl, onClose }: { item: ContentItemDTO | nul
       <Field label="Tags" hint="Comma-separated — interview, mindset, system-design">
         <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="tag1, tag2" />
       </Field>
+        </div>
+      </FormCard>
 
       {isNew && (
+        <FormCard title="Attachment">
         <Field label="Or attach a file" hint="Video, audio, PDF or image · up to 15 MB">
           <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground transition-colors hover:bg-accent">
             <Paperclip className="size-4 shrink-0" />
@@ -204,11 +203,13 @@ function ContentForm({ item, prefillUrl, onClose }: { item: ContentItemDTO | nul
           </label>
           {file && !fileOk && <p className="text-xs text-expense">That file type isn&apos;t supported — pick video, audio, PDF or an image.</p>}
         </Field>
+        </FormCard>
       )}
 
-      <Button onClick={onSave} disabled={!valid || pending || (file != null && !fileOk)} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {pending ? 'Saving…' : isNew ? 'Save to library' : 'Save changes'}
-      </Button>
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || pending || (file != null && !fileOk)} className="h-12 rounded-xl text-base font-semibold">
+          {pending ? 'Saving…' : isNew ? 'Save to library' : 'Save changes'}
+        </Button>
 
       {!isNew && (
         <Button
@@ -221,7 +222,8 @@ function ContentForm({ item, prefillUrl, onClose }: { item: ContentItemDTO | nul
           <Trash2 className="mr-1 size-4" /> Delete item
         </Button>
       )}
-    </div>
+      </FormActions>
+    </FormSheetBody>
   )
 }
 

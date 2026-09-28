@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormSheetBody } from '@/components/ui/saarthi'
 import { useBudgets, useCategories, useDeleteBudget, useSaveBudget } from '@/hooks/queries'
 import { parseAmountToPaise } from '@/lib/money'
 import { cn } from '@/lib/utils'
@@ -57,54 +57,60 @@ function BudgetForm({ budget, onClose }: { budget: BudgetWithStatus | null; onCl
   }
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
+    <FormSheetBody>
       {!budget && (
-        <Field label="Category">
-          <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto">
-            {expenseCategories.map((c) => {
-              const taken = budgetedIds.has(c.id)
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  disabled={taken}
-                  onClick={() => setCategoryId(c.id)}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition-colors',
-                    categoryId === c.id ? 'border-primary bg-primary/10 font-semibold text-primary' : 'hover:bg-accent',
-                    taken && 'opacity-35',
-                  )}
-                >
-                  <span aria-hidden>{c.emoji}</span>
-                  {c.name}
-                  {taken && <span className="text-[10px] text-muted-foreground">set</span>}
-                </button>
-              )
-            })}
-            {expenseCategories.length === 0 && <span className="text-sm text-muted-foreground">No expense categories yet</span>}
-          </div>
+        <FormCard title="Category" description="Pick the spending bucket this monthly limit belongs to.">
+          <Field label="Category">
+            <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto">
+              {expenseCategories.map((c) => {
+                const taken = budgetedIds.has(c.id)
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={taken}
+                    onClick={() => setCategoryId(c.id)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition-colors',
+                      categoryId === c.id ? 'border-primary bg-primary/10 font-semibold text-primary' : 'hover:bg-accent',
+                      taken && 'opacity-35',
+                    )}
+                  >
+                    <span aria-hidden>{c.emoji}</span>
+                    {c.name}
+                    {taken && <span className="text-[10px] text-muted-foreground">set</span>}
+                  </button>
+                )
+              })}
+              {expenseCategories.length === 0 && <span className="text-sm text-muted-foreground">No expense categories yet</span>}
+            </div>
+          </Field>
+        </FormCard>
+      )}
+
+      <FormCard title="Monthly limit" description="This amount resets every month and feeds the spending overview.">
+        <Field label="Monthly limit (₹)" hint={paise != null && paise < 10_000 ? 'That seems small — double-check?' : undefined}>
+          <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="8000" autoFocus={!!budget} />
         </Field>
-      )}
+      </FormCard>
 
-      <Field label="Monthly limit (₹)" hint={paise != null && paise < 10_000 ? 'That seems small — double-check?' : undefined}>
-        <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="8000" autoFocus={!!budget} />
-      </Field>
-
-      <Button onClick={onSave} disabled={!canSave || save.isPending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {save.isPending ? 'Saving…' : budget ? 'Save changes' : 'Set budget'}
-      </Button>
-
-      {budget && (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            if (confirm(`Remove the ${budget.categoryName} budget?`)) del.mutate(budget.id, { onSuccess: onClose })
-          }}
-          className="text-expense"
-        >
-          Remove budget
+      <FormActions>
+        <Button onClick={onSave} disabled={!canSave || save.isPending} className="h-12 rounded-xl text-base font-semibold">
+          {save.isPending ? 'Saving…' : budget ? 'Save changes' : 'Set budget'}
         </Button>
-      )}
-    </div>
+
+        {budget && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (confirm(`Remove the ${budget.categoryName} budget?`)) del.mutate(budget.id, { onSuccess: onClose })
+            }}
+            className="text-expense"
+          >
+            Remove budget
+          </Button>
+        )}
+      </FormActions>
+    </FormSheetBody>
   )
 }

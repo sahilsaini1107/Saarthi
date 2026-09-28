@@ -8,7 +8,7 @@ import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Field, Money } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormGrid, FormSheetBody, Money } from '@/components/ui/saarthi'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useDeleteRd, useSaveRd } from '@/hooks/queries'
@@ -94,64 +94,73 @@ function RdForm({ rd, onClose }: { rd: RdWithMeta | null; onClose: () => void })
   }
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
-      <Field label="Bank / institution">
-        <Input value={bank} onChange={(e) => setBank(e.target.value)} placeholder="e.g. HDFC" />
-      </Field>
-      <Field label="Job · portfolio role" hint="Suggested: 🛡️ Safety">
-        <JobPicker value={job} suggested={suggestJobForDeposit()} onChange={setJob} />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Monthly installment (₹)">
-          <Input inputMode="decimal" value={installment} onChange={(e) => setInstallment(e.target.value)} placeholder="5000" />
-        </Field>
-        <Field label="Rate (% p.a.)">
-          <Input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="7.5" />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Tenure (months)">
-          <Input inputMode="numeric" value={tenure} onChange={(e) => setTenure(e.target.value.replace(/\D/g, ''))} placeholder="24" />
-        </Field>
-        <Field label="Start date">
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 rounded-xl" />
-        </Field>
-      </div>
-      <Field label="Compounding">
-        <Select value={compounding} onValueChange={setCompounding}>
-          <SelectTrigger className="h-11 w-full rounded-xl">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(COMPOUND_LABELS).map(([v, label]) => (
-              <SelectItem key={v} value={v}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-      {!rd && (
-        <div className="flex items-center justify-between rounded-xl border p-3">
-          <div>
-            <p className="text-sm font-medium">Auto-create installment bill</p>
-            <p className="text-xs text-muted-foreground">Monthly bill → one tap to log each installment</p>
-          </div>
-          <Switch checked={autoBill} onCheckedChange={setAutoBill} />
+    <FormSheetBody>
+      <FormCard title="Deposit identity" description="Name the institution and assign the money job.">
+        <div className="flex flex-col gap-3">
+          <Field label="Bank / institution">
+            <Input value={bank} onChange={(e) => setBank(e.target.value)} placeholder="e.g. HDFC" />
+          </Field>
+          <Field label="Job · portfolio role" hint="Suggested: safety">
+            <JobPicker value={job} suggested={suggestJobForDeposit()} onChange={setJob} />
+          </Field>
         </div>
-      )}
-      {!rd && (
-        <div className="flex items-center justify-between rounded-xl border p-3">
-          <div>
-            <p className="text-sm font-medium">Auto-renew on maturity</p>
-            <p className="text-xs text-muted-foreground">You will still get reminder nudges</p>
-          </div>
-          <Switch checked={autoRenew} onCheckedChange={setAutoRenew} />
+      </FormCard>
+
+      <FormCard title="RD terms" description="Monthly installment, rate, tenure and compounding drive the preview.">
+        <div className="flex flex-col gap-3">
+          <FormGrid>
+            <Field label="Monthly installment (₹)">
+              <Input inputMode="decimal" value={installment} onChange={(e) => setInstallment(e.target.value)} placeholder="5000" />
+            </Field>
+            <Field label="Rate (% p.a.)">
+              <Input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="7.5" />
+            </Field>
+          </FormGrid>
+          <FormGrid>
+            <Field label="Tenure (months)">
+              <Input inputMode="numeric" value={tenure} onChange={(e) => setTenure(e.target.value.replace(/\D/g, ''))} placeholder="24" />
+            </Field>
+            <Field label="Start date">
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 rounded-xl" />
+            </Field>
+          </FormGrid>
+          <Field label="Compounding">
+            <Select value={compounding} onValueChange={setCompounding}>
+              <SelectTrigger className="h-11 w-full rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(COMPOUND_LABELS).map(([v, label]) => (
+                  <SelectItem key={v} value={v}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          {!rd && (
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between rounded-xl border p-3">
+                <div>
+                  <p className="text-sm font-medium">Auto-create installment bill</p>
+                  <p className="text-xs text-muted-foreground">Monthly bill means one tap to log each installment</p>
+                </div>
+                <Switch checked={autoBill} onCheckedChange={setAutoBill} />
+              </div>
+              <div className="flex items-center justify-between rounded-xl border p-3">
+                <div>
+                  <p className="text-sm font-medium">Auto-renew on maturity</p>
+                  <p className="text-xs text-muted-foreground">You will still get reminder nudges</p>
+                </div>
+                <Switch checked={autoRenew} onCheckedChange={setAutoRenew} />
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </FormCard>
 
       {preview && (
-        <div className="rounded-2xl bg-primary/5 p-4">
+        <FormCard className="bg-primary/5">
           <p className="text-xs font-semibold tracking-wide text-primary uppercase">Maturity preview</p>
           <div className="mt-1.5 flex items-end justify-between">
             <div>
@@ -164,23 +173,25 @@ function RdForm({ rd, onClose }: { rd: RdWithMeta | null; onClose: () => void })
               +{(preview.interest / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })} interest
             </p>
           </div>
-        </div>
+        </FormCard>
       )}
 
-      <Button onClick={onSave} disabled={!valid || save.isPending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {save.isPending ? 'Saving…' : rd ? 'Save changes' : 'Start RD'}
-      </Button>
-      {rd && (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            if (confirm(`Remove the ${rd.bank} RD and its installment bill?`)) del.mutate(rd.id, { onSuccess: onClose })
-          }}
-          className="text-expense"
-        >
-          Remove RD
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || save.isPending} className="h-12 rounded-xl text-base font-semibold">
+          {save.isPending ? 'Saving…' : rd ? 'Save changes' : 'Start RD'}
         </Button>
-      )}
-    </div>
+        {rd && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (confirm(`Remove the ${rd.bank} RD and its installment bill?`)) del.mutate(rd.id, { onSuccess: onClose })
+            }}
+            className="text-expense"
+          >
+            Remove RD
+          </Button>
+        )}
+      </FormActions>
+    </FormSheetBody>
   )
 }

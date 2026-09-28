@@ -8,7 +8,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } f
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormGrid, FormSheetBody } from '@/components/ui/saarthi'
 import { useDeleteJournalEntry, useSaveJournalEntry } from '@/hooks/queries'
 import { JOURNAL_TEMPLATES } from '@/lib/constants'
 import { MOOD_META, MOODS } from '@/lib/journal'
@@ -93,79 +93,89 @@ function EntryForm({
   }
 
   return (
-    <div className="flex max-h-[72vh] flex-col gap-3 overflow-y-auto">
-      <div className="flex flex-wrap gap-2">
-        {JOURNAL_TEMPLATES.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            title={t.hint}
-            onClick={() => applyTemplate(t.key)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border bg-card px-3 text-xs font-medium transition-all hover:bg-accent active:scale-95"
-          >
-            <span aria-hidden>{t.emoji}</span> {t.name}
-          </button>
-        ))}
-      </div>
-
-      <Field label="Title (optional)">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="A few words about today…" />
-      </Field>
-
-      <Field label="Entry">
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="How was your day? What's on your mind?"
-          className="min-h-40 rounded-xl bg-card text-base"
-        />
-      </Field>
-
-      <Field label="Mood">
-        <div className="flex justify-between gap-1.5">
-          {MOODS.map((m) => (
+    <FormSheetBody className="max-h-[72vh]">
+      <FormCard title="Templates" description="Use a prompt when the blank page feels too blank.">
+        <div className="flex flex-wrap gap-2">
+          {JOURNAL_TEMPLATES.map((t) => (
             <button
-              key={m}
+              key={t.key}
               type="button"
-              aria-label={MOOD_META[m].label}
-              onClick={() => setMood((cur) => (cur === m ? null : m))}
-              className={cn(
-                'flex flex-1 flex-col items-center gap-0.5 rounded-xl border py-2 transition-all active:scale-90',
-                mood === m ? 'border-primary bg-primary/10' : 'bg-card',
-              )}
+              title={t.hint}
+              onClick={() => applyTemplate(t.key)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border bg-background px-3 text-xs font-medium transition-all hover:bg-accent active:scale-95"
             >
-              <span className="text-xl" aria-hidden>
-                {MOOD_META[m].emoji}
-              </span>
-              <span className="text-[10px] font-medium text-muted-foreground">{MOOD_META[m].label}</span>
+              <span aria-hidden>{t.emoji}</span> {t.name}
             </button>
           ))}
         </div>
-      </Field>
+      </FormCard>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Tags" hint="Comma separated">
-          <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="work, family" />
-        </Field>
-        <Field label="Date">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-11 rounded-xl" />
-        </Field>
-      </div>
+      <FormCard title="Entry">
+        <div className="flex flex-col gap-3">
+          <Field label="Title" hint="Optional">
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="A few words about today…" />
+          </Field>
+          <Field label="Entry">
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="How was your day? What's on your mind?"
+              className="min-h-40 rounded-xl bg-background text-base"
+            />
+          </Field>
+        </div>
+      </FormCard>
 
-      <Button onClick={onSave} disabled={!valid || save.isPending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {save.isPending ? 'Saving…' : entry ? 'Save changes' : 'Save entry'}
-      </Button>
-      {entry && (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            if (confirm('Delete this entry? This cannot be undone.')) del.mutate(entry.id, { onSuccess: onClose })
-          }}
-          className="text-expense"
-        >
-          Delete entry
+      <FormCard title="Mood and filing">
+        <div className="flex flex-col gap-3">
+          <Field label="Mood">
+            <div className="flex justify-between gap-1.5">
+              {MOODS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-label={MOOD_META[m].label}
+                  onClick={() => setMood((cur) => (cur === m ? null : m))}
+                  className={cn(
+                    'flex flex-1 flex-col items-center gap-0.5 rounded-xl border py-2 transition-all active:scale-90',
+                    mood === m ? 'border-primary bg-primary/10' : 'bg-background',
+                  )}
+                >
+                  <span className="text-xl" aria-hidden>
+                    {MOOD_META[m].emoji}
+                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground">{MOOD_META[m].label}</span>
+                </button>
+              ))}
+            </div>
+          </Field>
+          <FormGrid>
+            <Field label="Tags" hint="Comma separated">
+              <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="work, family" />
+            </Field>
+            <Field label="Date">
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-11 rounded-xl" />
+            </Field>
+          </FormGrid>
+        </div>
+      </FormCard>
+
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || save.isPending} className="h-12 rounded-xl text-base font-semibold">
+          {save.isPending ? 'Saving…' : entry ? 'Save changes' : 'Save entry'}
         </Button>
-      )}
-    </div>
+        {entry && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (confirm('Delete this entry? This cannot be undone.')) del.mutate(entry.id, { onSuccess: onClose })
+            }}
+            className="text-expense"
+          >
+            Delete entry
+          </Button>
+        )}
+      </FormActions>
+    </FormSheetBody>
   )
 }

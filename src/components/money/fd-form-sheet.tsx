@@ -8,7 +8,7 @@ import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Field, Money } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormGrid, FormSheetBody, Money } from '@/components/ui/saarthi'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useDeleteFd, useSaveFd } from '@/hooks/queries'
@@ -89,55 +89,64 @@ function FdForm({ fd, onClose }: { fd: FdWithMeta | null; onClose: () => void })
   }
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
-      <Field label="Bank / institution">
-        <Input value={bank} onChange={(e) => setBank(e.target.value)} placeholder="e.g. SBI" />
-      </Field>
-      <Field label="Job · portfolio role" hint="Suggested: 🛡️ Safety">
-        <JobPicker value={job} suggested={suggestJobForDeposit()} onChange={setJob} />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Principal (₹)">
-          <Input inputMode="decimal" value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="100000" />
-        </Field>
-        <Field label="Rate (% p.a.)">
-          <Input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="7.1" />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Tenure (months)">
-          <Input inputMode="numeric" value={tenure} onChange={(e) => setTenure(e.target.value.replace(/\D/g, ''))} placeholder="12" />
-        </Field>
-        <Field label="Start date">
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 rounded-xl" />
-        </Field>
-      </div>
-      <Field label="Compounding">
-        <Select value={compounding} onValueChange={setCompounding}>
-          <SelectTrigger className="h-11 w-full rounded-xl">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(COMPOUND_LABELS).map(([v, label]) => (
-              <SelectItem key={v} value={v}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-      {!fd && (
-        <div className="flex items-center justify-between rounded-xl border p-3">
-          <div>
-            <p className="text-sm font-medium">Auto-renew on maturity</p>
-            <p className="text-xs text-muted-foreground">You will still get reminder nudges</p>
-          </div>
-          <Switch checked={autoRenew} onCheckedChange={setAutoRenew} />
+    <FormSheetBody>
+      <FormCard title="Deposit identity" description="Name the institution and assign the money job.">
+        <div className="flex flex-col gap-3">
+          <Field label="Bank / institution">
+            <Input value={bank} onChange={(e) => setBank(e.target.value)} placeholder="e.g. SBI" />
+          </Field>
+          <Field label="Job · portfolio role" hint="Suggested: safety">
+            <JobPicker value={job} suggested={suggestJobForDeposit()} onChange={setJob} />
+          </Field>
         </div>
-      )}
+      </FormCard>
+
+      <FormCard title="FD terms" description="Principal, rate, tenure and compounding drive the maturity preview.">
+        <div className="flex flex-col gap-3">
+          <FormGrid>
+            <Field label="Principal (₹)">
+              <Input inputMode="decimal" value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="100000" />
+            </Field>
+            <Field label="Rate (% p.a.)">
+              <Input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="7.1" />
+            </Field>
+          </FormGrid>
+          <FormGrid>
+            <Field label="Tenure (months)">
+              <Input inputMode="numeric" value={tenure} onChange={(e) => setTenure(e.target.value.replace(/\D/g, ''))} placeholder="12" />
+            </Field>
+            <Field label="Start date">
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 rounded-xl" />
+            </Field>
+          </FormGrid>
+          <Field label="Compounding">
+            <Select value={compounding} onValueChange={setCompounding}>
+              <SelectTrigger className="h-11 w-full rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(COMPOUND_LABELS).map(([v, label]) => (
+                  <SelectItem key={v} value={v}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          {!fd && (
+            <div className="flex items-center justify-between rounded-xl border p-3">
+              <div>
+                <p className="text-sm font-medium">Auto-renew on maturity</p>
+                <p className="text-xs text-muted-foreground">You will still get reminder nudges</p>
+              </div>
+              <Switch checked={autoRenew} onCheckedChange={setAutoRenew} />
+            </div>
+          )}
+        </div>
+      </FormCard>
 
       {preview && (
-        <div className="rounded-2xl bg-primary/5 p-4">
+        <FormCard className="bg-primary/5">
           <p className="text-xs font-semibold tracking-wide text-primary uppercase">Maturity preview</p>
           <div className="mt-1.5 flex items-end justify-between">
             <div>
@@ -148,23 +157,25 @@ function FdForm({ fd, onClose }: { fd: FdWithMeta | null; onClose: () => void })
               +{((preview.maturityPaise - preview.principalPaise) / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })} interest
             </p>
           </div>
-        </div>
+        </FormCard>
       )}
 
-      <Button onClick={onSave} disabled={!valid || save.isPending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {save.isPending ? 'Saving…' : fd ? 'Save changes' : 'Add to ladder'}
-      </Button>
-      {fd && (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            if (confirm(`Remove the ${fd.bank} FD from your ladder?`)) del.mutate(fd.id, { onSuccess: onClose })
-          }}
-          className="text-expense"
-        >
-          Remove FD
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || save.isPending} className="h-12 rounded-xl text-base font-semibold">
+          {save.isPending ? 'Saving…' : fd ? 'Save changes' : 'Add to ladder'}
         </Button>
-      )}
-    </div>
+        {fd && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (confirm(`Remove the ${fd.bank} FD from your ladder?`)) del.mutate(fd.id, { onSuccess: onClose })
+            }}
+            className="text-expense"
+          >
+            Remove FD
+          </Button>
+        )}
+      </FormActions>
+    </FormSheetBody>
   )
 }

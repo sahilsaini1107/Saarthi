@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormSheetBody } from '@/components/ui/saarthi'
 import { useCreateIdea, useDeleteIdea, useUpdateIdea } from '@/hooks/queries'
 import { iceBand, iceScore, IDEA_CATEGORIES, IDEA_STATUSES, IDEA_STATUS_META } from '@/lib/ideas'
 import { cn } from '@/lib/utils'
@@ -114,7 +114,9 @@ function IdeaForm({ idea, prefill, onClose }: { idea: IdeaDTO | null; prefill?: 
   }
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
+    <FormSheetBody>
+      <FormCard title="Idea basics" description="Capture the spark, category, and current stage.">
+        <div className="flex flex-col gap-3">
       <Field label="Idea">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Weekly creator podcast for dev tools" autoFocus={isNew} />
       </Field>
@@ -154,7 +156,10 @@ function IdeaForm({ idea, prefill, onClose }: { idea: IdeaDTO | null; prefill?: 
           ))}
         </div>
       </Field>
+        </div>
+      </FormCard>
 
+      <FormCard title="Priority" description={score != null ? `ICE score ${score}: ${band === 'strong' ? 'strong bet' : band === 'promising' ? 'promising' : 'a seed worth watering'}.` : undefined}>
       <Field
         label="ICE scoring"
         hint={score != null ? `Score ${score} — ${band === 'strong' ? 'strong bet' : band === 'promising' ? 'promising' : 'a seed worth watering'}` : undefined}
@@ -165,11 +170,15 @@ function IdeaForm({ idea, prefill, onClose }: { idea: IdeaDTO | null; prefill?: 
           <Slider label={`Effort — ${effort}`} value={effort} onChange={setEffort} />
         </div>
       </Field>
+      </FormCard>
 
-      <Field label="Next physical action" hint="The one thing you could do in the next 15 minutes">
-        <Input value={nextStep} onChange={(e) => setNextStep(e.target.value)} placeholder="e.g. DM two potential listeners" />
-      </Field>
+      <FormCard title="Next move">
+        <Field label="Next physical action" hint="The one thing you could do in the next 15 minutes">
+          <Input value={nextStep} onChange={(e) => setNextStep(e.target.value)} placeholder="e.g. DM two potential listeners" />
+        </Field>
+      </FormCard>
 
+      <FormCard title="Lean canvas">
       <button
         type="button"
         onClick={() => setCanvasOpen(!canvasOpen)}
@@ -186,18 +195,23 @@ function IdeaForm({ idea, prefill, onClose }: { idea: IdeaDTO | null; prefill?: 
           ))}
         </div>
       )}
+      </FormCard>
 
-      <Field label="Tags" hint="Comma-separated">
-        <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="side-project, ai" />
-      </Field>
+      <FormCard title="Notes">
+        <div className="flex flex-col gap-3">
+          <Field label="Tags" hint="Comma-separated">
+            <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="side-project, ai" />
+          </Field>
+          <Field label="Notes" hint="Research, links, open questions">
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything you'd want to reread later…" className="min-h-16 rounded-xl" />
+          </Field>
+        </div>
+      </FormCard>
 
-      <Field label="Notes" hint="Research, links, open questions">
-        <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything you'd want to reread later…" className="min-h-16 rounded-xl" />
-      </Field>
-
-      <Button onClick={onSave} disabled={!valid || pending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {pending ? 'Saving…' : isNew ? 'Capture idea' : 'Save changes'}
-      </Button>
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || pending} className="h-12 rounded-xl text-base font-semibold">
+          {pending ? 'Saving…' : isNew ? 'Capture idea' : 'Save changes'}
+        </Button>
 
       {!isNew && (
         <Button
@@ -210,7 +224,8 @@ function IdeaForm({ idea, prefill, onClose }: { idea: IdeaDTO | null; prefill?: 
           <Trash2 className="mr-1 size-4" /> Delete idea
         </Button>
       )}
-    </div>
+      </FormActions>
+    </FormSheetBody>
   )
 }
 

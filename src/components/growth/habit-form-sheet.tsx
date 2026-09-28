@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormGrid, FormSheetBody } from '@/components/ui/saarthi'
 import { Switch } from '@/components/ui/switch'
 import { useDeleteHabit, useSaveHabit } from '@/hooks/queries'
 import { HABIT_COLORS, HABIT_EMOJIS, WEEKDAY_LABELS } from '@/lib/constants'
@@ -78,7 +78,9 @@ function HabitForm({ habit, tz, onClose }: { habit: HabitWithStats | null; tz: s
   }
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
+    <FormSheetBody>
+      <FormCard title="Habit identity" description="Make it easy to recognize in Today and the habit grid.">
+        <div className="flex flex-col gap-3">
       <Field label="Habit name">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Morning run" />
       </Field>
@@ -115,7 +117,11 @@ function HabitForm({ habit, tz, onClose }: { habit: HabitWithStats | null; tz: s
           ))}
         </div>
       </Field>
+        </div>
+      </FormCard>
 
+      <FormCard title="Schedule" description="Unscheduled days never break your streak; rest days are free.">
+        <div className="flex flex-col gap-3">
       <Field label="Repeat on" hint="Unscheduled days never break your streak — rest days are free.">
         <div className="grid grid-cols-7 gap-1.5">
           {WEEKDAY_LABELS.map((label, i) => {
@@ -137,21 +143,24 @@ function HabitForm({ habit, tz, onClose }: { habit: HabitWithStats | null; tz: s
         </div>
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <FormGrid>
         <Field label="Building window (days)" hint="66 is the science-backed default">
           <Input inputMode="numeric" value={buildingDays} onChange={(e) => setBuildingDays(e.target.value.replace(/\D/g, ''))} placeholder="66" />
         </Field>
         <Field label="Start date">
           <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 rounded-xl" />
         </Field>
-      </div>
+      </FormGrid>
 
       <Field label="Daily reminder" hint="Optional — a local nudge at this time each day">
         <Input type="time" value={reminder} onChange={(e) => setReminder(e.target.value)} className="h-11 rounded-xl" />
       </Field>
+        </div>
+      </FormCard>
 
       {habit && (
-        <div className="flex items-center justify-between rounded-xl border p-3">
+        <FormCard>
+        <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium">Archived</p>
             <p className="text-xs text-muted-foreground">Hidden from Today; history is kept</p>
@@ -164,11 +173,13 @@ function HabitForm({ habit, tz, onClose }: { habit: HabitWithStats | null; tz: s
             }}
           />
         </div>
+        </FormCard>
       )}
 
-      <Button onClick={onSave} disabled={!valid || save.isPending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {save.isPending ? 'Saving…' : habit ? 'Save changes' : 'Start building'}
-      </Button>
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || save.isPending} className="h-12 rounded-xl text-base font-semibold">
+          {save.isPending ? 'Saving…' : habit ? 'Save changes' : 'Start building'}
+        </Button>
       {habit && (
         <Button
           variant="ghost"
@@ -180,6 +191,7 @@ function HabitForm({ habit, tz, onClose }: { habit: HabitWithStats | null; tz: s
           Delete habit
         </Button>
       )}
-    </div>
+      </FormActions>
+    </FormSheetBody>
   )
 }

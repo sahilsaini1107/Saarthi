@@ -9,7 +9,7 @@ import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormGrid, FormSheetBody } from '@/components/ui/saarthi'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSavePolicy } from '@/hooks/queries'
 import { parseAmountToPaise } from '@/lib/money'
@@ -99,11 +99,13 @@ function PolicyForm({ policy, onClose }: { policy: InsurancePolicyDTO | null; on
   }
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
+    <FormSheetBody>
+      <FormCard title="Policy basics" description="Capture what is covered and who provides the policy.">
+        <div className="flex flex-col gap-3">
       <Field label="What is it for?">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Family health floater" />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      <FormGrid>
         <Field label="Type">
           <Select value={type} onValueChange={setType}>
             <SelectTrigger className="h-11 w-full rounded-xl">
@@ -121,16 +123,21 @@ function PolicyForm({ policy, onClose }: { policy: InsurancePolicyDTO | null; on
         <Field label="Insurer">
           <Input value={insurer} onChange={(e) => setInsurer(e.target.value)} placeholder="e.g. LIC, HDFC Ergo" />
         </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
+      </FormGrid>
+      <FormGrid>
         <Field label="Sum assured (₹)">
           <Input inputMode="decimal" value={sumAssured} onChange={(e) => setSumAssured(e.target.value)} placeholder="1000000" />
         </Field>
         <Field label="Policy number" hint="Optional">
           <Input value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} placeholder="123456789" />
         </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
+      </FormGrid>
+        </div>
+      </FormCard>
+
+      <FormCard title="Premium schedule" description="Annual cost and the next cycle are previewed live.">
+        <div className="flex flex-col gap-3">
+      <FormGrid>
         <Field label="Premium (₹)">
           <Input inputMode="decimal" value={premium} onChange={(e) => setPremium(e.target.value)} placeholder="25000" />
         </Field>
@@ -148,7 +155,7 @@ function PolicyForm({ policy, onClose }: { policy: InsurancePolicyDTO | null; on
             </SelectContent>
           </Select>
         </Field>
-      </div>
+      </FormGrid>
       {preview && (
         <p className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
           ≈ <span className="font-semibold text-foreground">{formatINR(preview.annual)}</span> per year
@@ -159,25 +166,33 @@ function PolicyForm({ policy, onClose }: { policy: InsurancePolicyDTO | null; on
           )}
         </p>
       )}
-      <div className="grid grid-cols-2 gap-3">
+      <FormGrid>
         <Field label="Start date">
           <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 rounded-xl" />
         </Field>
         <Field label="Next premium due">
           <Input type="date" value={nextPremiumDue} onChange={(e) => setNextPremiumDue(e.target.value)} className="h-11 rounded-xl" />
         </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
+      </FormGrid>
+        </div>
+      </FormCard>
+
+      <FormCard title="Expiry and nominee">
+      <FormGrid>
         <Field label="Maturity date" hint="Blank for term plans">
           <Input type="date" value={maturityDate ?? ''} onChange={(e) => setMaturityDate(e.target.value)} className="h-11 rounded-xl" />
         </Field>
         <Field label="Nominee" hint="Optional">
           <Input value={nominee ?? ''} onChange={(e) => setNominee(e.target.value)} placeholder="Name" />
         </Field>
-      </div>
-      <Button className="mt-1 rounded-xl" disabled={!valid || save.isPending} onClick={onSave}>
-        {save.isPending ? 'Saving…' : policy ? 'Save changes' : 'Add policy'}
-      </Button>
-    </div>
+      </FormGrid>
+      </FormCard>
+
+      <FormActions>
+        <Button className="h-12 rounded-xl text-base font-semibold" disabled={!valid || save.isPending} onClick={onSave}>
+          {save.isPending ? 'Saving…' : policy ? 'Save changes' : 'Add policy'}
+        </Button>
+      </FormActions>
+    </FormSheetBody>
   )
 }

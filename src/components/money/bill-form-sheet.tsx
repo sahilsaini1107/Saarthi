@@ -7,7 +7,7 @@ import { useUi } from '@/components/saarthi-app'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormGrid, FormSheetBody, SegmentedControl } from '@/components/ui/saarthi'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAccounts, useCategories, useSaveBill } from '@/hooks/queries'
 import { parseAmountToPaise } from '@/lib/money'
@@ -83,85 +83,99 @@ function BillForm({ bill, onClose }: { bill: BillWithMeta | null; onClose: () =>
   }
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
-      <Field label="Name">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Broadband" />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Amount (₹)">
-          <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="799" />
-        </Field>
-        <Field label="Next due">
-          <Input type="date" value={nextDue} onChange={(e) => setNextDue(e.target.value)} className="h-11 rounded-xl" />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Frequency">
-          <Select value={frequency} onValueChange={setFrequency}>
-            <SelectTrigger className="h-11 w-full rounded-xl">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(FREQ_LABELS).map(([v, label]) => (
-                <SelectItem key={v} value={v}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        {frequency === 'custom_days' ? (
-          <Field label="Every (days)">
-            <Input inputMode="numeric" value={customDays} onChange={(e) => setCustomDays(e.target.value.replace(/\D/g, ''))} />
+    <FormSheetBody>
+      <FormCard title="Bill basics" description="Name the payment and anchor the next amount.">
+        <div className="flex flex-col gap-3">
+          <Field label="Name">
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Broadband" />
           </Field>
-        ) : (
-          <Field label="Remind days before">
-            <Input inputMode="numeric" value={remindDaysBefore} onChange={(e) => setRemindDaysBefore(e.target.value.replace(/\D/g, ''))} />
+          <FormGrid>
+            <Field label="Amount (₹)">
+              <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="799" />
+            </Field>
+            <Field label="Next due">
+              <Input type="date" value={nextDue} onChange={(e) => setNextDue(e.target.value)} className="h-11 rounded-xl" />
+            </Field>
+          </FormGrid>
+        </div>
+      </FormCard>
+
+      <FormCard title="Repeat rule" description="Choose the cycle and when Saarthi should nudge you.">
+        <div className="flex flex-col gap-3">
+          <Field label="Frequency">
+            <SegmentedControl
+              value={frequency}
+              onChange={setFrequency}
+              options={[
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'quarterly', label: 'Quarterly' },
+                { value: 'annual', label: 'Annual' },
+                { value: 'custom_days', label: 'Custom' },
+              ]}
+              className="grid-cols-4"
+            />
           </Field>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Category">
-          <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger className="h-11 w-full rounded-xl">
-              <SelectValue placeholder="None" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              {(categories.data ?? []).map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.emoji} {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="Pay from account">
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className="h-11 w-full rounded-xl">
-              <SelectValue placeholder="Default" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Default (first)</SelectItem>
-              {(accounts.data ?? []).map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
+          <FormGrid>
+            {frequency === 'custom_days' ? (
+              <Field label="Every (days)">
+                <Input inputMode="numeric" value={customDays} onChange={(e) => setCustomDays(e.target.value.replace(/\D/g, ''))} />
+              </Field>
+            ) : (
+              <Field label="Remind days before">
+                <Input inputMode="numeric" value={remindDaysBefore} onChange={(e) => setRemindDaysBefore(e.target.value.replace(/\D/g, ''))} />
+              </Field>
+            )}
+            <div className="flex items-end">
+              {following && (
+                <p className="w-full rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+                  Next after this: <span className="font-semibold text-foreground">{following}</span>
+                </p>
+              )}
+            </div>
+          </FormGrid>
+        </div>
+      </FormCard>
 
-      {following && (
-        <p className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
-          Following occurrence: <span className="font-semibold text-foreground">{following}</span>
-        </p>
-      )}
+      <FormCard title="Payment routing" description="Optional, but useful for cleaner budgets and reminders.">
+        <FormGrid>
+          <Field label="Category">
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger className="h-11 w-full rounded-xl">
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {(categories.data ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.emoji} {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Pay from account">
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger className="h-11 w-full rounded-xl">
+                <SelectValue placeholder="Default" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Default (first)</SelectItem>
+                {(accounts.data ?? []).map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </FormGrid>
+      </FormCard>
 
-      <Button onClick={onSave} disabled={!valid || save.isPending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {save.isPending ? 'Saving…' : bill ? 'Save changes' : 'Schedule bill'}
-      </Button>
-    </div>
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || save.isPending} className="h-12 rounded-xl text-base font-semibold">
+          {save.isPending ? 'Saving…' : bill ? 'Save changes' : 'Schedule bill'}
+        </Button>
+      </FormActions>
+    </FormSheetBody>
   )
 }

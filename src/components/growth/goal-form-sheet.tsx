@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormSheetBody } from '@/components/ui/saarthi'
 import { Switch } from '@/components/ui/switch'
 import { useAddMilestone, useDeleteGoal, useSaveGoal } from '@/hooks/queries'
 import { GOAL_COLORS, GOAL_EMOJIS } from '@/lib/constants'
@@ -119,7 +119,9 @@ function GoalForm({ goal, onClose }: { goal: GoalDTO | null; onClose: () => void
   }
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
+    <FormSheetBody>
+      <FormCard title="Goal identity" description="Set the big picture and why it matters.">
+        <div className="flex flex-col gap-3">
       <Field label="Goal">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Run a half marathon" />
       </Field>
@@ -160,7 +162,11 @@ function GoalForm({ goal, onClose }: { goal: GoalDTO | null; onClose: () => void
           ))}
         </div>
       </Field>
+        </div>
+      </FormCard>
 
+      <FormCard title="Timeline and milestones" description="Target dates and starter milestones make the first step visible.">
+        <div className="flex flex-col gap-3">
       <Field label="Target date (optional)" hint="Overdue and due-soon goals get flagged on your cards">
         <Input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="h-11 rounded-xl" />
       </Field>
@@ -179,7 +185,11 @@ function GoalForm({ goal, onClose }: { goal: GoalDTO | null; onClose: () => void
           />
         </Field>
       )}
+        </div>
+      </FormCard>
 
+      <FormCard title="Daily tracking" description="Optional, but it turns the goal into a visible effort grid.">
+        <div className="flex flex-col gap-3">
       <Field
         label="Daily tracking"
         hint={
@@ -245,9 +255,12 @@ function GoalForm({ goal, onClose }: { goal: GoalDTO | null; onClose: () => void
           />
         </Field>
       )}
+        </div>
+      </FormCard>
 
       {goal && (
-        <div className="flex items-center justify-between rounded-xl border p-3">
+        <FormCard>
+        <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium">Archived</p>
             <p className="text-xs text-muted-foreground">Hidden from lists; history is kept</p>
@@ -260,11 +273,13 @@ function GoalForm({ goal, onClose }: { goal: GoalDTO | null; onClose: () => void
             }}
           />
         </div>
+        </FormCard>
       )}
 
-      <Button onClick={onSave} disabled={!valid || save.isPending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {save.isPending ? 'Saving…' : goal ? 'Save changes' : 'Set the goal'}
-      </Button>
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || save.isPending} className="h-12 rounded-xl text-base font-semibold">
+          {save.isPending ? 'Saving…' : goal ? 'Save changes' : 'Set the goal'}
+        </Button>
       {goal && (
         <Button
           variant="ghost"
@@ -276,6 +291,7 @@ function GoalForm({ goal, onClose }: { goal: GoalDTO | null; onClose: () => void
           Delete goal
         </Button>
       )}
-    </div>
+      </FormActions>
+    </FormSheetBody>
   )
 }

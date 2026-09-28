@@ -8,7 +8,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Field } from '@/components/ui/saarthi'
+import { Field, FormActions, FormCard, FormSheetBody } from '@/components/ui/saarthi'
 import { useDeleteRoutine, useSaveRoutine } from '@/hooks/queries'
 import { WEEKDAY_LABELS } from '@/lib/constants'
 import type { RoutineStepDTO, RoutineWithMeta } from '@/lib/types'
@@ -91,7 +91,9 @@ function RoutineForm({ routine, onClose }: { routine: RoutineWithMeta | null; on
   const totalMin = steps.reduce((sum, s) => sum + (Number(s.minutes) || 0), 0)
 
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
+    <FormSheetBody>
+      <FormCard title="Routine identity" description="Name the sequence and pick its marker.">
+        <div className="flex flex-col gap-3">
       <Field label="Routine name">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Morning kickstart" />
       </Field>
@@ -113,7 +115,11 @@ function RoutineForm({ routine, onClose }: { routine: RoutineWithMeta | null; on
           ))}
         </div>
       </Field>
+        </div>
+      </FormCard>
 
+      <FormCard title="Schedule" description="Choose the days and optional reminder for this routine.">
+        <div className="flex flex-col gap-3">
       <Field label="Days to play">
         <div className="grid grid-cols-7 gap-1.5">
           {WEEKDAY_LABELS.map((label, i) => {
@@ -142,7 +148,10 @@ function RoutineForm({ routine, onClose }: { routine: RoutineWithMeta | null; on
       <Field label="Reminder" hint="Optional nudge before you usually run this">
         <Input type="time" value={reminder} onChange={(e) => setReminder(e.target.value)} className="h-11 rounded-xl" />
       </Field>
+        </div>
+      </FormCard>
 
+      <FormCard title="Steps" description={totalMin > 0 ? `About ${totalMin} minutes total.` : 'Add the ordered actions this routine should play through.'}>
       <div className="flex items-center justify-between px-1">
         <p className="text-sm font-medium text-muted-foreground">
           Steps {totalMin > 0 && <span className="text-xs">· ~{totalMin} min total</span>}
@@ -192,10 +201,12 @@ function RoutineForm({ routine, onClose }: { routine: RoutineWithMeta | null; on
           </div>
         ))}
       </div>
+      </FormCard>
 
-      <Button onClick={onSave} disabled={!valid || save.isPending} className="mt-1 h-12 rounded-xl text-base font-semibold">
-        {save.isPending ? 'Saving…' : routine ? 'Save changes' : 'Create routine'}
-      </Button>
+      <FormActions>
+        <Button onClick={onSave} disabled={!valid || save.isPending} className="h-12 rounded-xl text-base font-semibold">
+          {save.isPending ? 'Saving…' : routine ? 'Save changes' : 'Create routine'}
+        </Button>
       {routine && (
         <Button
           variant="ghost"
@@ -207,6 +218,7 @@ function RoutineForm({ routine, onClose }: { routine: RoutineWithMeta | null; on
           Delete routine
         </Button>
       )}
-    </div>
+      </FormActions>
+    </FormSheetBody>
   )
 }

@@ -240,6 +240,82 @@ export function Field({
   )
 }
 
+/* ---------- form sheet layout ---------- */
+export function FormSheetBody({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn('flex max-h-[70vh] flex-col gap-4 overflow-y-auto pb-2', className)}>
+      {children}
+    </div>
+  )
+}
+
+export function FormCard({
+  title,
+  description,
+  action,
+  children,
+  className,
+}: {
+  title?: string
+  description?: string
+  action?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <section className={cn('rounded-2xl border bg-card p-3.5', className)}>
+      {(title || description || action) && (
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {title && <p className="text-sm font-semibold">{title}</p>}
+            {description && <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>}
+          </div>
+          {action}
+        </div>
+      )}
+      {children}
+    </section>
+  )
+}
+
+export function FormGrid({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn('grid grid-cols-2 gap-3', className)}>{children}</div>
+}
+
+export function SegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+  className,
+}: {
+  value: T
+  options: readonly { value: T; label: string }[]
+  onChange: (value: T) => void
+  className?: string
+}) {
+  return (
+    <div className={cn('grid gap-1 rounded-xl bg-muted p-1', className)} style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={cn(
+            'h-9 rounded-lg text-sm font-semibold transition-all',
+            value === option.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function FormActions({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn('flex shrink-0 flex-col gap-2', className)}>{children}</div>
+}
+
 /* ---------- utilization tone helper (task 1.1) ---------- */
 export function utilizationTone(pct: number): 'income' | 'warn' | 'expense' {
   if (pct < 30) return 'income'
